@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-scanner
+  namespace: asm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker-scanner
+  template:
+    metadata:
+      labels:
+        app: worker-scanner
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: worker-scanner
+          image: TU_USUARIO/asm-worker-scanner:latest
+          envFrom:
+            - secretRef:
+                name: asm-secrets
+          volumeMounts:
+            - name: reports-data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+      volumes:
+        - name: reports-data
+          persistentVolumeClaim:
+            claimName: asm-reports-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-report
+  namespace: asm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-report
+  template:
+    metadata:
+      labels:
+        app: worker-report
+    spec:
+      containers:
+        - name: worker-report
+          image: TU_USUARIO/asm-worker-report:latest
+          envFrom:
+            - secretRef:
+                name: asm-secrets
+          volumeMounts:
+            - name: reports-data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      volumes:
+        - name: reports-data
+          persistentVolumeClaim:
+            claimName: asm-reports-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: asm-reports-pvc
+  namespace: asm
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi

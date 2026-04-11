@@ -1,0 +1,72 @@
+@startuml
+title Diagrama de Componentes — ASM Attack Surface Manager
+
+package "Cliente" {
+  [Navegador Web]
+}
+
+package "Frontend (Docker: frontend)" {
+  [React SPA\nVite + Tailwind\nNginx :3000] as FE
+}
+
+package "API Gateway (Docker: api-gateway)" {
+  [FastAPI :8000] as GW
+  [JWT Auth\n(python-jose)] as JWT
+  [Router: /auth] as RAUTH
+  [Router: /scans] as RSCANS
+  [Router: /reports] as RREP
+  [Router: /users] as RUSERS
+  [Router: /consolidated] as RCONS
+}
+
+package "Message Broker (Docker: rabbitmq)" {
+  [RabbitMQ :5672\nqueue: scanner\nqueue: report] as MQ
+}
+
+package "Worker Scanner (Docker: worker-scanner)" {
+  [Celery Worker\n--concurrency=2] as WS
+  [bash scan script\nvalidar_subdominioModtimeout.sh] as SCRIPT
+}
+
+package "Worker Report (Docker: worker-report)" {
+  [Celery Worker\n--concurrency=1] as WR
+  [ReportLab PDF Generator] as PDF
+  [JSON Consolidado] as JCON
+}
+
+database "PostgreSQL :5432\n(Docker: db)" as DB {
+  [app_users]
+  [scans]
+  [reports]
+}
+
+storage "Volumen reports_data\n/data" as VOL {
+  [CSV files]
+  [PDF files]
+  [consolidado_data.json]
+}
+
+[Navegador Web] --> FE : HTTPS
+FE --> GW : HTTP/API REST
+GW --> JWT : valida token
+GW --> RAUTH
+GW --> RSCANS
+GW --> RREP
+GW --> RUSERS
+GW --> RCONS
+RSCANS --> MQ : send_task (scanner Q)
+MQ --> WS : consume task
+WS --> SCRIPT : subprocess.run()
+SCRIPT --> VOL : escribe CSV
+WS --> DB : UPDATE scans
+WS --> MQ : send_task (report Q)
+MQ --> WR : consume task
+WR --> PDF : genera PDF
+PDF --> VOL : escribe PDF
+WR --> JCON : actualiza JSON
+JCON --> VOL : escribe JSON
+GW --> DB : SQLAlchemy ORM
+WS --> DB : SQLAlchemy
+WR --> DB : INSERT reports
+
+@enduml

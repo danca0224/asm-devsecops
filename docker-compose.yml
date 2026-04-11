@@ -1,0 +1,128 @@
+version: "3.9"
+
+# ============================================================
+# ASM — docker-compose para entorno de DESARROLLO
+# ============================================================
+
+services:
+
+  # ── Base de datos ────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-asm_db}
+      POSTGRES_USER: ${POSTGRES_USER:-asm_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./servicios/api-gateway/app/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-asm_user} -d ${POSTGRES_DB:-asm_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - asm_net
+
+  # ── Message Broker ───────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-asm}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "15672:15672"   # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - asm_net
+
+  # ── API Gateway ──────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./servicios/api-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - reports_data:/data
+    networks:
+      - asm_net
+
+  # ── Worker Scanner ───────────────────────────────────────
+  worker-scanner:
+    build:
+      context: ./servicios/worker-scanner
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      RABBITMQ_HOST: rabbitmq
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-asm}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - reports_data:/data
+    networks:
+      - asm_net
+
+  # ── Worker Report ────────────────────────────────────────
+  worker-report:
+    build:
+      context: ./servicios/worker-report
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      RABBITMQ_HOST: rabbitmq
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-asm}:${RABBITMQ_PASSWORD}@rabbitmq:5672//
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - reports_data:/data
+    networks:
+      - asm_net
+
+  # ── Frontend ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./servicios/frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - asm_net
+
+volumes:
+  db_data:
+  reports_data:
+
+networks:
+  asm_net:
+    driver: bridge

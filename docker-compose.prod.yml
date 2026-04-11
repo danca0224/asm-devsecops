@@ -1,0 +1,52 @@
+version: "3.9"
+
+# ============================================================
+# ASM — docker-compose para entorno de PRODUCCIÓN
+# Usar: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+
+  db:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  rabbitmq:
+    restart: always
+    ports: []   # No exponer management UI en producción
+
+  api-gateway:
+    restart: always
+    environment:
+      JWT_EXPIRE_MINUTES: 30
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 256m
+
+  worker-scanner:
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512m
+
+  worker-report:
+    restart: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256m
+
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 64m

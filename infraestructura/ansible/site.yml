@@ -1,0 +1,24 @@
+---
+# ============================================================
+# ASM — Playbook Ansible de despliegue
+# Uso: ansible-playbook -i inventory.ini site.yml
+# ============================================================
+- name: Desplegar ASM en servidor de producción
+  hosts: asm_servers
+  become: true
+  vars_files:
+    - vars/secrets.yml   # vault: contraseñas y tokens (no commitear)
+
+  roles:
+    - asm
+
+  post_tasks:
+    - name: Verificar que los contenedores estén corriendo
+      command: docker compose ps
+      args:
+        chdir: /opt/asm
+      register: compose_status
+
+    - name: Mostrar estado de contenedores
+      debug:
+        var: compose_status.stdout_lines

@@ -1,0 +1,63 @@
+---
+# ── Tareas del rol ASM ──────────────────────────────────────
+
+- name: Crear directorio de la aplicación
+  file:
+    path: /opt/asm
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0750'
+
+- name: Crear directorio de datos
+  file:
+    path: /opt/asm/data
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0750'
+
+- name: Copiar docker-compose.yml
+  copy:
+    src: docker-compose.yml
+    dest: /opt/asm/docker-compose.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0640'
+
+- name: Copiar docker-compose.prod.yml
+  copy:
+    src: docker-compose.prod.yml
+    dest: /opt/asm/docker-compose.prod.yml
+    owner: ubuntu
+    group: ubuntu
+    mode: '0640'
+
+- name: Generar archivo .env desde plantilla
+  template:
+    src: env.j2
+    dest: /opt/asm/.env
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'   # Solo lectura del propietario
+
+- name: Pull de imágenes Docker Hub
+  command: docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+  args:
+    chdir: /opt/asm
+  become_user: ubuntu
+
+- name: Levantar servicios
+  command: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+  args:
+    chdir: /opt/asm
+  become_user: ubuntu
+
+- name: Crear usuario admin inicial
+  command: >
+    docker compose exec -T api-gateway
+    python -m app.scripts.create_admin
+  args:
+    chdir: /opt/asm
+  become_user: ubuntu
+  ignore_errors: true   # Puede fallar si el usuario ya existe

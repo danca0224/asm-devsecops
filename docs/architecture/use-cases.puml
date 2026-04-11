@@ -1,0 +1,52 @@
+@startuml
+title Diagrama de Casos de Uso — ASM Attack Surface Manager
+
+left to right direction
+
+actor "Analista\nde Seguridad" as ANALYST
+actor "Administrador" as ADMIN
+actor "Sistema\n(Workers)" as SYSTEM
+
+rectangle "ASM Platform" {
+
+  usecase "Iniciar sesión" as UC1
+  usecase "Cerrar sesión" as UC2
+  usecase "Solicitar análisis\nde dominio" as UC3
+  usecase "Consultar estado\ndel escaneo" as UC4
+  usecase "Descargar informe PDF" as UC5
+  usecase "Ver vista consolidada" as UC6
+  usecase "Crear usuario" as UC7
+  usecase "Listar usuarios" as UC8
+  usecase "Eliminar usuario" as UC9
+  usecase "Ejecutar escaneo\nde red (OSINT)" as UC10
+  usecase "Generar PDF\nautomático" as UC11
+  usecase "Actualizar\nconsolidado" as UC12
+
+}
+
+ANALYST --> UC1
+ANALYST --> UC2
+ANALYST --> UC3
+ANALYST --> UC4
+ANALYST --> UC5
+ANALYST --> UC6
+
+ADMIN --> UC1
+ADMIN --> UC2
+ADMIN --> UC3
+ADMIN --> UC4
+ADMIN --> UC5
+ADMIN --> UC6
+ADMIN --> UC7
+ADMIN --> UC8
+ADMIN --> UC9
+
+SYSTEM --> UC10 : <<trigger>> worker-scanner
+SYSTEM --> UC11 : <<trigger>> worker-report
+SYSTEM --> UC12 : <<trigger>> worker-report
+
+UC3 ..> UC10 : <<include>>
+UC10 ..> UC11 : <<include>>
+UC11 ..> UC12 : <<include>>
+
+@enduml

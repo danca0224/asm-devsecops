@@ -1,0 +1,74 @@
+@startuml
+title Flujo de Análisis de Dominio — Proyecto ASM
+
+actor "Analista" as USER
+participant "Frontend\n(React)" as FE
+participant "API Gateway\n(FastAPI)" as GW
+participant "RabbitMQ\nBroker" as MQ
+participant "Worker\nScanner" as WS
+participant "Worker\nReport" as WR
+database "PostgreSQL" as DB
+storage "Volumen\n/data" as VOL
+
+== Solicitud de Escaneo ==
+
+USER -> FE : Ingresa dominio y hace clic en\n"Ejecutar análisis"
+FE -> GW : POST /api/scans/\nAuthorization: Bearer <jwt>\n{domain: "ejemplo.com"}
+GW -> GW : Valida JWT y rol
+GW -> GW : Valida regex de dominio
+GW -> DB : INSERT INTO scans\n(domain, status='pending', user_id)
+DB --> GW : scan_id = 42
+GW -> MQ : send_task('worker_scanner.tasks.run_scan',\nargs=[42, 'ejemplo.com'],\nqueue='scanner')
+GW --> FE : 202 Accepted\n{id: 42, status: 'pending', ...}
+FE --> USER : Escaneo iniciado — estado: Pendiente
+
+== Ejecución del Escaneo (Worker Scanner) ==
+
+MQ -> WS : Consume tarea scan_id=42
+WS -> DB : UPDATE scans SET status='running' WHERE id=42
+WS -> WS : subprocess.run(['bash', 'validar_subdominioModtimeout.sh', 'ejemplo.com'])
+note right of WS
+  Análisis OSINT:
+  - Enumeración de subdominios
+  - Resolución DNS
+  - Escaneo de puertos (nmap)
+  - Verificación SSL/TLS (openssl)
+  - Cabeceras HTTP (curl)
+  - Registros SPF/DKIM/DMARC (dig)
+end note
+WS -> VOL : Escribe reporte_validado_ejemplo.com_42.csv
+WS -> DB : UPDATE scans SET status='completed',\ncsv_path='/data/reportes/...'
+WS -> MQ : send_task('worker_report.tasks.generate_report',\nargs=[42, 'ejemplo.com', '/data/...'],\nqueue='report')
+
+== Generación del Informe (Worker Report) ==
+
+MQ -> WR : Consume tarea scan_id=42
+WR -> VOL : Lee CSV del escaneo
+WR -> WR : Evalúa flags de vulnerabilidad\npor fila del CSV
+WR -> WR : Calcula criticidad global\n(score STRIDE-like)
+WR -> WR : Genera PDF con ReportLab
+WR -> VOL : Escribe PDF en /data/reportes/pdf/
+WR -> DB : INSERT INTO reports\n(scan_id=42, format='pdf', path='...')
+WR -> VOL : Actualiza consolidado_data.json
+
+== Consulta de Resultados ==
+
+USER -> FE : Hace clic en "Ver informe"
+FE -> GW : GET /api/scans/42
+GW -> DB : SELECT * FROM scans WHERE id=42
+DB --> GW : scan completado + csv_path
+GW --> FE : {status: 'completed', ...}
+
+FE -> GW : GET /api/reports/42
+GW -> DB : SELECT * FROM reports WHERE scan_id=42
+DB --> GW : [{id:1, format:'pdf', ...}]
+GW --> FE : Lista de informes disponibles
+FE --> USER : Botón "Descargar PDF" visible
+
+USER -> FE : Hace clic en Descargar
+FE -> GW : GET /api/reports/42/download/1
+GW -> VOL : Abre archivo PDF
+GW --> FE : FileResponse (PDF binario)
+FE --> USER : Descarga del informe PDF
+
+@enduml

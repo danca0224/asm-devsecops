@@ -1,0 +1,52 @@
+@startuml
+title Diagrama de Despliegue — ASM (Docker Compose / K3s)
+
+node "Servidor de Producción\n(EC2 t3.small / Ubuntu 22.04)" as SERVER {
+
+  node "Docker Compose\nasm_net (bridge)" as COMPOSE {
+
+    node "frontend\n(nginx:1.27-alpine)" as CFRONTEND {
+      artifact "React SPA Build\n/usr/share/nginx/html"
+    }
+
+    node "api-gateway\n(python:3.11-slim)" as CAPI {
+      artifact "FastAPI App\nuvicorn :8000"
+    }
+
+    node "worker-scanner\n(python:3.11-slim)" as CWSCANNER {
+      artifact "Celery Worker\n+ bash + nmap"
+    }
+
+    node "worker-report\n(python:3.11-slim)" as CWREPORT {
+      artifact "Celery Worker\n+ ReportLab"
+    }
+
+    node "rabbitmq\n(rabbitmq:3.13-alpine)" as CRABBITMQ {
+      artifact "AMQP :5672\nMgmt :15672"
+    }
+
+    node "db\n(postgres:16-alpine)" as CDB {
+      artifact "PostgreSQL :5432"
+    }
+  }
+
+  storage "Volumen: db_data\n/var/lib/postgresql/data" as VDATA
+  storage "Volumen: reports_data\n/data/reportes\n/data/consolidados" as VREPORTS
+}
+
+actor "Analista\nde Seguridad" as USER
+actor "GitHub Actions\nCI/CD Pipeline" as CICD
+
+USER --> CFRONTEND : HTTPS :3000
+CICD --> COMPOSE : docker compose pull & up
+
+CFRONTEND --> CAPI : /api/* (proxy nginx)
+CAPI --> CRABBITMQ : AMQP publish
+CAPI --> CDB : PostgreSQL queries
+CWSCANNER --> CRABBITMQ : consume scanner Q
+CWSCANNER --> VREPORTS : write CSV
+CWREPORT --> CRABBITMQ : consume report Q
+CWREPORT --> VREPORTS : write PDF
+CDB --> VDATA
+
+@enduml

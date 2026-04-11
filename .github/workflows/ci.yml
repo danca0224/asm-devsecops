@@ -1,0 +1,273 @@
+name: CI — Build & Security Pipeline (DevSecOps)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME }}/asm
+
+jobs:
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 2 — CODE: Detección de secretos
+  # ══════════════════════════════════════════════════════════
+  secrets-scan:
+    name: "🔑 Detección de Secretos (Gitleaks)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks — escaneo de secretos expuestos
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 2 — CODE: SAST — Análisis estático de código
+  # ══════════════════════════════════════════════════════════
+  sast-scan:
+    name: "🔍 SAST — Análisis Estático"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar herramientas SAST
+        run: pip install bandit semgrep
+
+      - name: Bandit — análisis de seguridad Python
+        run: |
+          bandit -r servicios/api-gateway/app/ \
+            servicios/worker-scanner/ \
+            servicios/worker-report/ \
+            -f json -o bandit-report.json \
+            --skip B101,B601 || true
+          bandit -r servicios/api-gateway/app/ \
+            servicios/worker-scanner/ \
+            servicios/worker-report/ \
+            --skip B101,B601
+
+      - name: Semgrep — análisis OWASP Top 10
+        run: |
+          semgrep --config p/python \
+                  --config p/owasp-top-ten \
+                  --config p/secrets \
+                  servicios/api-gateway/app/ \
+                  servicios/worker-scanner/ \
+                  servicios/worker-report/ \
+                  --json --output semgrep-report.json || true
+
+      - name: Subir reportes SAST
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sast-reports
+          path: |
+            bandit-report.json
+            semgrep-report.json
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 2 — CODE: SCA — Análisis de dependencias
+  # ══════════════════════════════════════════════════════════
+  dependency-check:
+    name: "📦 SCA — Análisis de Dependencias (Trivy)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy — escaneo de requirements.txt (API Gateway)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: servicios/api-gateway/requirements.txt
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          format: table
+
+      - name: Trivy — escaneo de requirements.txt (worker-scanner)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: servicios/worker-scanner/requirements.txt
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      - name: Trivy — escaneo de requirements.txt (worker-report)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: servicios/worker-report/requirements.txt
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+      - name: Trivy — escaneo de package.json (frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: servicios/frontend/package.json
+          severity: HIGH,CRITICAL
+          exit-code: 0   # Warn only para dependencias JS
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 3 — BUILD: Construcción y escaneo de imágenes Docker
+  # ══════════════════════════════════════════════════════════
+  build-and-scan:
+    name: "🐳 Build Docker + Escaneo de Imágenes"
+    runs-on: ubuntu-latest
+    needs: [secrets-scan, sast-scan, dependency-check]
+    strategy:
+      matrix:
+        service: [api-gateway, worker-scanner, worker-report, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build imagen — ${{ matrix.service }}
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }} \
+            servicios/${{ matrix.service }}/
+
+      - name: Trivy — escaneo CVE en imagen ${{ matrix.service }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ github.sha }}"
+          severity: CRITICAL
+          exit-code: 1
+          format: json
+          output: "trivy-${{ matrix.service }}-report.json"
+
+      - name: Subir reporte Trivy
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-${{ matrix.service }}-report
+          path: trivy-${{ matrix.service }}-report.json
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 4 — TEST: Pruebas unitarias
+  # ══════════════════════════════════════════════════════════
+  unit-tests:
+    name: "🧪 Pruebas Unitarias"
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias API Gateway
+        run: |
+          cd servicios/api-gateway
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Pytest — API Gateway
+        env:
+          POSTGRES_PASSWORD: test_password
+          JWT_SECRET_KEY: test_secret_key_for_testing_only_32chars
+          RABBITMQ_PASSWORD: test_rabbitmq
+          CELERY_BROKER_URL: memory://
+        run: |
+          cd servicios/api-gateway
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Subir reporte de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: servicios/api-gateway/coverage.xml
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias frontend
+        run: cd servicios/frontend && npm ci
+
+      - name: Jest — pruebas frontend
+        run: cd servicios/frontend && npm test -- --passWithNoTests
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 4 — TEST: DAST con OWASP ZAP
+  # ══════════════════════════════════════════════════════════
+  dast-scan:
+    name: "🌐 DAST — OWASP ZAP Baseline"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Levantar entorno de staging
+        env:
+          POSTGRES_PASSWORD: ci_test_password_123
+          JWT_SECRET_KEY: ci_jwt_secret_key_for_testing_only
+          RABBITMQ_PASSWORD: ci_rabbitmq_pass
+          CELERY_BROKER_URL: amqp://asm:ci_rabbitmq_pass@rabbitmq:5672//
+          RABBITMQ_USER: asm
+        run: |
+          docker compose up -d --wait || docker compose up -d
+          sleep 30
+          docker compose ps
+
+      - name: OWASP ZAP — Baseline Scan contra API Gateway
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:8000"
+          rules_file_name: ".zap/rules.tsv"
+          fail_action: warn
+          artifact_name: "zap-api-report"
+
+      - name: Bajar entorno de staging
+        if: always()
+        run: docker compose down -v
+
+  # ══════════════════════════════════════════════════════════
+  # FASE 5 — RELEASE: Checkov sobre IaC + Tag semver
+  # ══════════════════════════════════════════════════════════
+  iac-scan:
+    name: "🏗️ IaC Scan — Checkov"
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkov — escaneo Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infraestructura/terraform
+          framework: terraform
+          output_format: cli
+          soft_fail: true
+
+      - name: Checkov — escaneo Kubernetes
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: orquestacion/k8s
+          framework: kubernetes
+          output_format: cli
+          soft_fail: true
+
+      - name: Checkov — escaneo Docker Compose
+        uses: bridgecrewio/checkov-action@master
+        with:
+          file: docker-compose.yml
+          framework: dockerfile
+          soft_fail: true

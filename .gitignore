@@ -1,0 +1,50 @@
+# Secrets — NUNCA commitear
+.env
+*.env
+secrets.toml
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Node / React
+node_modules/
+dist/
+.next/
+
+# Reportes generados
+servicios/worker-scanner/reportes/
+servicios/worker-report/reportes/
+data/
+
+# Terraform
+infraestructura/terraform/.terraform/
+infraestructura/terraform/*.tfstate
+infraestructura/terraform/*.tfstate.backup
+infraestructura/terraform/.terraform.lock.hcl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Security scan output (keep reports in CI artifacts, not in repo)
+bandit-report.json
+trivy-report.json
+zap-report.html
+gitleaks-report.json

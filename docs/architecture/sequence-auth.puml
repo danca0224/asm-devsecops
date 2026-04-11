@@ -1,0 +1,57 @@
+@startuml
+title Flujo de Autenticación — Proyecto ASM
+
+actor "Analista" as USER
+participant "Frontend\n(React)" as FE
+participant "API Gateway\n(FastAPI)" as GW
+participant "JWT Auth\n(python-jose)" as JWT
+database "PostgreSQL\n(app_users)" as DB
+
+== Login ==
+
+USER -> FE : Ingresa credenciales\n(usuario + contraseña)
+FE -> GW : POST /api/auth/token\nform: username + password
+GW -> DB : SELECT id, username, password_hash, role\nWHERE username = ?
+DB --> GW : Registro de usuario
+
+alt Credenciales válidas
+    GW -> JWT : bcrypt.verify(password, hash)
+    JWT --> GW : ✅ Verificado
+    GW -> JWT : create_access_token\n{sub: username, role: role, exp: now+60min}
+    JWT --> GW : token JWT firmado (HS256)
+    GW --> FE : 200 OK\n{access_token, token_type, username, role}
+    FE -> FE : localStorage.setItem('asm_token', token)
+    FE --> USER : Acceso concedido\nRedirige a Dashboard
+
+else Credenciales inválidas
+    GW --> FE : 401 Unauthorized\n"Credenciales incorrectas"
+    FE --> USER : ❌ Error de autenticación
+
+else Usuario inactivo
+    GW --> FE : 403 Forbidden\n"Cuenta desactivada"
+    FE --> USER : ❌ Cuenta desactivada
+end
+
+== Solicitud autenticada ==
+
+USER -> FE : Solicita escaneo de dominio
+FE -> GW : POST /api/scans/\nAuthorization: Bearer <token>
+GW -> JWT : jwt.decode(token, secret)
+
+alt Token válido
+    JWT --> GW : payload {sub, role, exp}
+    GW -> DB : SELECT * FROM app_users WHERE username = sub
+    DB --> GW : Usuario activo
+    GW --> FE : 202 Accepted\n{scan_id, status: "pending"}
+
+else Token expirado
+    JWT --> GW : JWTError: expired
+    GW --> FE : 401 Unauthorized
+    FE --> USER : Sesión expirada — redirige a Login
+
+else Token inválido
+    JWT --> GW : JWTError: invalid
+    GW --> FE : 401 Unauthorized
+end
+
+@enduml

@@ -1,0 +1,120 @@
+{
+  "summary": {
+    "title": "ASM — Threat Model (OWASP Threat Dragon)",
+    "owner": "Equipo ASM",
+    "description": "Modelo de amenazas STRIDE para la plataforma ASM",
+    "id": "asm-threat-model-v1"
+  },
+  "detail": {
+    "contributors": [],
+    "diagrams": [
+      {
+        "title": "Diagrama de Flujo de Datos — Nivel 0",
+        "thumbnail": "",
+        "diagramType": "STRIDE",
+        "id": 0,
+        "version": "2.0",
+        "cells": [
+          {
+            "type": "tm.Actor",
+            "id": "actor-analyst",
+            "label": "Analista de Seguridad",
+            "description": "Usuario externo que interactúa con la plataforma"
+          },
+          {
+            "type": "tm.Process",
+            "id": "proc-asm",
+            "label": "ASM Platform",
+            "description": "Plataforma completa de análisis"
+          },
+          {
+            "type": "tm.Store",
+            "id": "store-db",
+            "label": "PostgreSQL",
+            "description": "Base de datos de usuarios y escaneos",
+            "isALog": true,
+            "storesCredentials": true,
+            "isEncrypted": false
+          },
+          {
+            "type": "tm.Store",
+            "id": "store-files",
+            "label": "Reportes / CSV",
+            "description": "Archivos generados en volumen Docker"
+          },
+          {
+            "type": "tm.Actor",
+            "id": "actor-internet",
+            "label": "Internet (dominios objetivo)",
+            "description": "Infraestructura externa analizada"
+          }
+        ]
+      }
+    ],
+    "threats": [
+      {
+        "id": "T1",
+        "category": "Spoofing",
+        "title": "Suplantación de identidad de usuario",
+        "description": "Un atacante podría intentar acceder con credenciales robadas o forzadas.",
+        "mitigation": "JWT con expiración de 60 minutos, bcrypt con salt para contraseñas, no se almacena la contraseña en texto plano.",
+        "status": "Mitigated",
+        "severity": "High"
+      },
+      {
+        "id": "T2",
+        "category": "Tampering",
+        "title": "Modificación de datos de escaneo en tránsito",
+        "description": "Un atacante en posición MitM podría alterar los resultados del escaneo.",
+        "mitigation": "Comunicación interna por red Docker (no expuesta). En producción, HTTPS obligatorio via nginx.",
+        "status": "Mitigated",
+        "severity": "Medium"
+      },
+      {
+        "id": "T3",
+        "category": "Repudiation",
+        "title": "Negación de acciones realizadas",
+        "description": "Un usuario podría negar haber solicitado un escaneo.",
+        "mitigation": "Tabla scans en PostgreSQL con user_id, created_at y estado. Log inmutable.",
+        "status": "Mitigated",
+        "severity": "Low"
+      },
+      {
+        "id": "T4",
+        "category": "Information Disclosure",
+        "title": "Filtración de secretos en el código fuente",
+        "description": "Credenciales o tokens podrían exponerse accidentalmente en el repositorio.",
+        "mitigation": "Gitleaks en pre-commit y en CI. .env excluido por .gitignore. Secretos solo via variables de entorno.",
+        "status": "Mitigated",
+        "severity": "Critical"
+      },
+      {
+        "id": "T5",
+        "category": "Denial of Service",
+        "title": "Abuso del endpoint de escaneo",
+        "description": "Un usuario podría solicitar miles de escaneos simultáneos agotando los recursos.",
+        "mitigation": "Celery limita concurrencia (--concurrency=2). Timeout de 15 min por escaneo. Rate limiting pendiente.",
+        "status": "Open",
+        "severity": "Medium"
+      },
+      {
+        "id": "T6",
+        "category": "Elevation of Privilege",
+        "title": "Acceso de usuario regular a funciones de admin",
+        "description": "Un usuario 'user' podría intentar llamar endpoints de administración.",
+        "mitigation": "require_admin() Depends en todos los endpoints admin. Validación de rol desde el JWT.",
+        "status": "Mitigated",
+        "severity": "High"
+      },
+      {
+        "id": "T7",
+        "category": "Information Disclosure",
+        "title": "Command injection en parámetro dominio",
+        "description": "El dominio ingresado por el usuario podría contener caracteres maliciosos para inyección en bash.",
+        "mitigation": "Validación estricta con regex DOMAIN_RE antes de procesar. El dominio se pasa como argumento posicional al script, no interpolado en string.",
+        "status": "Mitigated",
+        "severity": "Critical"
+      }
+    ]
+  }
+}

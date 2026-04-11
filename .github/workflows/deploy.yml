@@ -1,0 +1,115 @@
+name: Deploy — Release & Push Docker Hub
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # Solo en tags de versión semántica (v1.0.0, v1.2.3)
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: ${{ secrets.DOCKER_HUB_USERNAME }}/asm
+
+jobs:
+
+  # ══════════════════════════════════════════════════════════
+  # Build y push de todas las imágenes a Docker Hub
+  # ══════════════════════════════════════════════════════════
+  build-push:
+    name: "🚀 Build & Push a Docker Hub"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api-gateway, worker-scanner, worker-report, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extraer versión del tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login a Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build y Push — ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: servicios/${{ matrix.service }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.version.outputs.VERSION }}
+            ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Verificar imágenes publicadas
+        run: |
+          docker pull ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${{ steps.version.outputs.VERSION }}
+          echo "✅ Imagen publicada correctamente en Docker Hub"
+
+  # ══════════════════════════════════════════════════════════
+  # Despliegue en servidor de producción vía Ansible
+  # ══════════════════════════════════════════════════════════
+  deploy-production:
+    name: "🌐 Despliegue en Producción"
+    runs-on: ubuntu-latest
+    needs: build-push
+    environment: production   # Requiere aprobación manual en GitHub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Ansible
+        run: pip install ansible
+
+      - name: Configurar SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Crear archivo de inventario
+        run: |
+          cat > infraestructura/ansible/inventory_prod.ini << EOF
+          [asm_servers]
+          asm-prod ansible_host=${{ secrets.PROD_SERVER_IP }} ansible_user=ubuntu
+          EOF
+
+      - name: Ejecutar playbook Ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook \
+            -i infraestructura/ansible/inventory_prod.ini \
+            infraestructura/ansible/site.yml \
+            --extra-vars "app_version=${{ github.ref_name }}"
+
+      - name: Crear Release en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "ASM ${{ github.ref_name }}"
+          body: |
+            ## Cambios en ${{ github.ref_name }}
+
+            ### Imágenes Docker Hub publicadas:
+            - `${{ env.IMAGE_PREFIX }}-api-gateway:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-worker-scanner:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-worker-report:${{ github.ref_name }}`
+            - `${{ env.IMAGE_PREFIX }}-frontend:${{ github.ref_name }}`
+
+            ### Despliegue:
+            ```bash
+            docker compose pull
+            docker compose up -d
+            ```
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
