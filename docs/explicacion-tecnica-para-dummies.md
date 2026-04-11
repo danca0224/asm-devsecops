@@ -1057,6 +1057,58 @@ Antes de grabar esta parte, asegúrate de que el proyecto esté corriendo con `d
 
 ---
 
+#### Parte 5 — Demostración en consola (2–3 minutos)
+
+Esta parte es opcional pero suma mucho con el evaluador porque demuestra que entiendes lo que corre por debajo de la interfaz gráfica. Muestra estos comandos en la terminal mientras narras qué hace cada uno.
+
+**1. Ver los contenedores corriendo con uso de recursos en tiempo real:**
+```bash
+docker stats --no-stream
+```
+Muestra CPU, memoria y red de cada contenedor. Buena imagen para mostrar que son procesos reales e independientes.
+
+**2. Ver que los workers usan usuario no-root (buena práctica de seguridad):**
+```bash
+docker compose exec api-gateway whoami
+docker compose exec worker-scanner whoami
+```
+Deben responder `appuser` y `scanner` respectivamente — no `root`. Esto demuestra que los contenedores siguen el principio de mínimo privilegio.
+
+**3. Ver el flujo asíncrono en vivo mientras corre un análisis:**
+
+Abre dos terminales lado a lado. En una lanza un análisis desde el frontend. En la otra ejecuta:
+```bash
+docker compose logs -f worker-scanner worker-report
+```
+Se verá en tiempo real cómo el worker-scanner recibe la tarea, ejecuta el script bash y luego el worker-report genera el PDF. Es la secuencia más visual del sistema.
+
+**4. Verificar que el API responde correctamente:**
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8000/docs
+```
+El primero retorna `{"status":"ok","service":"api-gateway"}`. Muestra que el endpoint de salud funciona (usado también por Docker para los healthchecks).
+
+**5. Ver el historial de commits del proyecto:**
+```bash
+git log --oneline
+```
+Muestra la trazabilidad del desarrollo. Refuerza la narrativa de que el proyecto se construyó de forma iterativa y documentada.
+
+**6. Ver las imágenes Docker construidas y sus tamaños:**
+```bash
+docker images | grep asm
+```
+Muestra las 4 imágenes con su tamaño. Puedes comentar que se usaron imágenes base mínimas (Alpine, slim) para reducir la superficie de ataque.
+
+**7. Correr los tests del backend manualmente:**
+```bash
+docker compose exec api-gateway pytest tests/ -v
+```
+Muestra los tests pasando con sus nombres descriptivos. Visualmente confirma que hay cobertura automatizada.
+
+---
+
 ### Checklist antes de grabar
 
 - [ ] `docker compose ps` muestra todos los servicios en `healthy`
