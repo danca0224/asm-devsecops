@@ -973,4 +973,100 @@ Luego el `docker compose up -d` funcionará sin necesitar internet.
 
 ---
 
+## Cómo hacer el video de demostración (10–15 minutos)
+
+El trabajo final exige un video que muestre el **ciclo completo DevSecOps**. No es solo mostrar la app funcionando — el evaluador quiere ver el pipeline de seguridad, las imágenes en Docker Hub y la aplicación en acción. Esta sección te guía parte por parte.
+
+### Herramienta para grabar
+
+- **Windows:** Presiona `Win + G` para abrir la Xbox Game Bar y graba la pantalla. O descarga **OBS Studio** (gratis, [obsproject.com](https://obsproject.com)) para mayor control.
+- **Mac:** `Cmd + Shift + 5` abre el grabador de pantalla nativo.
+- **Linux:** OBS Studio o `simplescreenrecorder`.
+
+Graba en resolución **1080p** mínimo. Activa el micrófono para narrar mientras grabas.
+
+---
+
+### Estructura sugerida del video
+
+#### Parte 1 — Pipeline CI/CD en GitHub Actions (4–5 minutos)
+
+1. Abre el navegador en `https://github.com/danca0224/asm-devsecops/actions`
+2. Muestra un **run completado** (el ícono verde de check). Explica en voz alta:
+   > *"Este es el pipeline de seguridad que se ejecuta automáticamente cada vez que hay un cambio en el código."*
+3. Haz clic en el run y muestra cada job uno por uno:
+   - **secrets-scan** (Gitleaks) — explica que detecta contraseñas o claves accidentalmente subidas al código
+   - **sast-scan** (Bandit + Semgrep) — análisis estático, busca vulnerabilidades en el código Python y JavaScript
+   - **dependency-check** (Trivy SCA) — revisa si las librerías tienen vulnerabilidades conocidas
+   - **build-and-scan** (Docker build + Trivy imagen) — construye las 4 imágenes y las escanea
+   - **unit-tests** (Pytest + Jest) — pruebas automáticas del backend y frontend
+   - **dast-scan** (OWASP ZAP) — ataca la app de forma controlada para encontrar problemas en tiempo de ejecución
+   - **iac-scan** (Checkov) — revisa que la infraestructura como código sea segura
+4. Abre el log de uno o dos jobs y muestra el output (no necesitas leer todo — solo mostrar que hay resultados)
+
+> **Tip:** Si no tienes un run reciente, haz un cambio pequeño en cualquier archivo (agrega un espacio en el README) y haz push — el pipeline se dispara automáticamente en 1–2 minutos.
+
+---
+
+#### Parte 2 — Imágenes en Docker Hub (1 minuto)
+
+1. Abre el navegador en `https://hub.docker.com/u/danca0224`
+2. Muestra las 4 imágenes publicadas:
+   - `danca0224/asm-api-gateway`
+   - `danca0224/asm-worker-scanner`
+   - `danca0224/asm-worker-report`
+   - `danca0224/asm-frontend`
+3. Haz clic en una de ellas y muestra que tiene los tags `v1.0.0` y `latest`
+4. Menciona brevemente:
+   > *"Las imágenes están publicadas con versionado semántico, listas para ser descargadas y desplegadas en cualquier servidor."*
+
+---
+
+#### Parte 3 — Aplicación corriendo (5–6 minutos)
+
+Antes de grabar esta parte, asegúrate de que el proyecto esté corriendo con `docker compose up -d`.
+
+**Secuencia a mostrar:**
+
+1. Abre una terminal y ejecuta `docker compose ps` — muestra que todos los servicios están `healthy`
+2. Abre el navegador en `http://localhost:3000`
+3. Haz login con el usuario administrador
+4. En el Dashboard, ingresa un dominio real en el campo de análisis (ejemplo: `google.com` o el dominio de tu universidad) y haz clic en **Analizar**
+5. Muestra cómo el estado cambia de `pending` → `running` (auto-refresca cada 10 segundos)
+6. Mientras espera, ve a la pestaña **Usuarios** (si eres admin) y muestra la gestión de usuarios
+7. Cuando el análisis complete, haz clic en el scan para entrar al detalle:
+   - Muestra la **badge de criticidad** (crítica / alta / media / baja)
+   - Recorre las **5 tabs**: Resumen, Puertos, Tecnologías, Activos, Informes
+   - Muestra las **gráficas interactivas** (barra de hallazgos, gráfica de puertos coloreada por riesgo, pie chart de tecnologías)
+   - En la tab **Activos**, usa los filtros para mostrar solo los activos con flags de seguridad
+8. En la tab **Informes**, descarga el PDF generado automáticamente y ábrelo brevemente
+9. Vuelve al menú y abre la vista **Consolidado** — muestra el resumen global de todos los análisis
+
+---
+
+#### Parte 4 — Repositorio y arquitectura (1–2 minutos)
+
+1. Abre `https://github.com/danca0224/asm-devsecops`
+2. Muestra la estructura de carpetas en el README (las badges de estado del pipeline son un buen detalle visual)
+3. Navega brevemente a:
+   - `servicios/` — muestra los 4 microservicios
+   - `docs/architecture/` — abre uno de los archivos `.puml` para mostrar los diagramas UML
+   - `.github/workflows/ci.yml` — muestra el archivo del pipeline (no leas todo, solo desplázate para que se vea su extensión)
+4. Cierra con una frase de cierre:
+   > *"El proyecto implementa un pipeline DevSecOps completo: desde la detección de secretos en el código hasta el despliegue de imágenes versionadas en Docker Hub, pasando por análisis estático, dinámico y pruebas automatizadas."*
+
+---
+
+### Checklist antes de grabar
+
+- [ ] `docker compose ps` muestra todos los servicios en `healthy`
+- [ ] Puedes hacer login en `http://localhost:3000`
+- [ ] Tienes al menos un análisis completado para mostrar (o tiempo para esperar uno)
+- [ ] El pipeline de GitHub Actions tiene al menos un run completado visible
+- [ ] Las 4 imágenes están visibles en Docker Hub
+- [ ] El micrófono funciona y el audio se escucha claro
+- [ ] Cierra notificaciones del sistema para no interrumpir la grabación (`Win + A` → No molestar en Windows)
+
+---
+
 *Documento generado como parte del Trabajo Final de Especialización en Ciberseguridad — Énfasis DevSecOps.*
