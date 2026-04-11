@@ -513,4 +513,464 @@ asm-devsecops/
 
 ---
 
+## Cómo migrar el proyecto a otra máquina (paso a paso para dummies)
+
+Esta sección explica **exactamente qué hacer para que el proyecto funcione en un computador diferente al que se usó para desarrollarlo**. No se necesita saber DevOps avanzado — solo seguir los pasos en orden.
+
+---
+
+### ¿Qué necesita el equipo destino?
+
+Antes de empezar, el equipo donde vas a correr el proyecto necesita dos programas instalados:
+
+#### En Windows:
+
+1. **Docker Desktop** — descárgalo desde [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
+   - Durante la instalación, acepta habilitar WSL 2 si te lo pide
+   - Reinicia el equipo cuando termine
+   - Abre Docker Desktop y espera a que aparezca el ícono de la ballena en la barra de tareas en verde
+
+2. **Git** — descárgalo desde [git-scm.com](https://git-scm.com/)
+   - Instala con todas las opciones por defecto
+   - Para verificar que quedó instalado, abre una terminal (cmd o PowerShell) y escribe: `git --version`
+
+#### En Linux (Ubuntu/Debian):
+
+```bash
+# Instalar Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Instalar Git
+sudo apt install git -y
+
+# Verificar
+docker --version
+git --version
+```
+
+#### En macOS:
+
+1. Descarga **Docker Desktop** desde [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
+2. Git ya viene instalado en macOS — si no, al escribir `git` en la terminal te ofrecerá instalarlo
+
+---
+
+### Paso 1 — Descargar el proyecto
+
+Abre una terminal (en Windows: PowerShell o CMD; en Mac/Linux: Terminal) y escribe:
+
+```bash
+git clone https://github.com/danca0224/asm-devsecops.git
+```
+
+Esto descarga todos los archivos del proyecto a una carpeta llamada `asm-devsecops`. Luego entra a esa carpeta:
+
+```bash
+cd asm-devsecops
+```
+
+**¿Qué hace `git clone`?** Es como descargar un ZIP desde GitHub pero de forma inteligente — trae el historial completo del proyecto y lo conecta al repositorio original para que puedas recibir actualizaciones después.
+
+---
+
+### Paso 2 — Crear el archivo de configuración
+
+El proyecto necesita un archivo llamado `.env` que contiene las contraseñas y configuraciones internas. Este archivo **no está en GitHub** por seguridad (está en `.gitignore`), por eso hay que crearlo manualmente.
+
+Hay un archivo de ejemplo llamado `.env.example`. Cópialo:
+
+**En Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+```
+
+**En Mac/Linux:**
+```bash
+cp .env.example .env
+```
+
+Ahora abre el archivo `.env` con cualquier editor de texto (Bloc de Notas, VS Code, nano, etc.) y configura los valores. Los mínimos necesarios para que funcione:
+
+```env
+# Base de datos
+POSTGRES_DB=asm_db
+POSTGRES_USER=asm_user
+POSTGRES_PASSWORD=MiContraseñaSegura123
+
+# Seguridad JWT (clave para firmar los tokens de sesión — ponla larga y aleatoria)
+JWT_SECRET_KEY=esta-clave-debe-ser-larga-y-aleatoria-minimo-32-caracteres
+
+# RabbitMQ (mensajería interna — puedes dejar estos valores)
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
+
+# Usuario administrador inicial de la aplicación
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=Admin2024!
+ADMIN_EMAIL=admin@miempresa.com
+```
+
+**Importante:** No uses contraseñas simples como `123456`. El sistema arranca igualmente pero es mala práctica.
+
+---
+
+### Paso 3 — Construir y levantar todos los servicios
+
+Este es el paso principal. Con un solo comando Docker construye las imágenes y levanta todo:
+
+```bash
+docker compose up --build -d
+```
+
+**¿Qué significa cada parte?**
+- `docker compose up` — levanta todos los servicios definidos en `docker-compose.yml`
+- `--build` — construye las imágenes desde cero (necesario la primera vez)
+- `-d` — modo "detached", es decir, corre en segundo plano y te devuelve la terminal
+
+**¿Cuánto tarda?** La primera vez puede tomar entre **5 y 15 minutos** porque Docker descarga las imágenes base (Python, Node, PostgreSQL, etc.) y compila el código. Las veces siguientes es mucho más rápido.
+
+Mientras esperas, puedes ver qué está pasando con:
+
+```bash
+docker compose logs -f
+```
+
+Presiona `Ctrl+C` para salir de los logs (los servicios siguen corriendo).
+
+---
+
+### Paso 4 — Verificar que todo arrancó bien
+
+```bash
+docker compose ps
+```
+
+Deberías ver algo así:
+
+```
+NAME                    STATUS          PORTS
+asm-db-1                healthy         5432/tcp
+asm-rabbitmq-1          healthy         5672/tcp, 15672/tcp
+asm-api-gateway-1       healthy         0.0.0.0:8000->8000/tcp
+asm-worker-scanner-1    running
+asm-worker-report-1     running
+asm-frontend-1          healthy         0.0.0.0:3000->80/tcp
+```
+
+Si todos los servicios dicen `healthy` o `running`, el sistema está listo.
+
+**Si algún servicio dice `Exit` o `Restarting`**, ve a la sección de solución de problemas más abajo.
+
+---
+
+### Paso 5 — Crear el usuario administrador
+
+Solo hay que hacer esto **una vez**, la primera vez que levantas el proyecto en ese equipo:
+
+```bash
+docker compose exec api-gateway python app/scripts/create_admin.py
+```
+
+**¿Qué hace esto?** Entra dentro del contenedor del API Gateway y ejecuta un script Python que crea el usuario administrador en la base de datos usando los valores que pusiste en el `.env` (`ADMIN_USERNAME`, `ADMIN_PASSWORD`).
+
+---
+
+### Paso 6 — Abrir la aplicación
+
+Abre un navegador y ve a:
+
+| Servicio | URL |
+|---|---|
+| **Aplicación principal** | http://localhost:3000 |
+| **Documentación API** | http://localhost:8000/docs |
+| **Panel RabbitMQ** | http://localhost:15672 |
+
+Ingresa con las credenciales que pusiste en `.env` (`ADMIN_USERNAME` / `ADMIN_PASSWORD`).
+
+---
+
+### Comandos útiles del día a día
+
+```bash
+# Ver el estado de todos los contenedores
+docker compose ps
+
+# Ver los logs en tiempo real de todos los servicios
+docker compose logs -f
+
+# Ver los logs de un servicio específico
+docker compose logs -f api-gateway
+docker compose logs -f worker-scanner
+
+# Apagar todo (los datos se conservan)
+docker compose down
+
+# Apagar todo Y borrar los datos de la base de datos (cuidado)
+docker compose down -v
+
+# Reiniciar un servicio específico sin bajar todo
+docker compose restart api-gateway
+
+# Reconstruir solo un servicio después de cambiar su código
+docker compose up --build -d api-gateway
+```
+
+---
+
+### ¿Cómo actualizar el proyecto cuando hay cambios nuevos en GitHub?
+
+```bash
+# Descargar los cambios nuevos
+git pull origin master
+
+# Reconstruir y reiniciar con los cambios
+docker compose up --build -d
+```
+
+---
+
+## Guía de resolución de problemas (Troubleshooting)
+
+Esta sección cubre los errores más comunes que pueden ocurrir y cómo resolverlos.
+
+---
+
+### ❌ Error: "docker: command not found" o "docker compose: command not found"
+
+**Qué significa:** Docker no está instalado o no está en el PATH del sistema.
+
+**Solución:**
+1. Verifica que Docker Desktop esté instalado y **abierto** (en Windows/Mac, el ícono de la ballena debe estar en la barra de tareas)
+2. Cierra y vuelve a abrir la terminal después de instalar Docker
+3. En Linux, verifica con `sudo docker --version`. Si funciona con sudo pero no sin él, ejecuta:
+   ```bash
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+---
+
+### ❌ Error: "Cannot connect to the Docker daemon"
+
+**Qué significa:** El servicio de Docker no está corriendo.
+
+**Solución:**
+- **Windows/Mac:** Abre Docker Desktop y espera a que el ícono de la ballena esté en verde
+- **Linux:**
+  ```bash
+  sudo systemctl start docker
+  sudo systemctl enable docker
+  ```
+
+---
+
+### ❌ El comando `docker compose up` falla con "port is already allocated"
+
+**Ejemplo del error:**
+```
+Error starting userland proxy: listen tcp 0.0.0.0:5432: bind: address already in use
+```
+
+**Qué significa:** El puerto que necesita uno de los contenedores ya está siendo usado por otro programa en tu máquina. Común con PostgreSQL (5432) o servicios web (80, 3000, 8000).
+
+**Solución:**
+
+En Windows, busca qué usa ese puerto:
+```powershell
+netstat -ano | findstr :5432
+```
+El último número es el PID del proceso. Ábrelo en el Administrador de tareas y termínalo.
+
+En Mac/Linux:
+```bash
+lsof -i :5432
+kill -9 <PID>
+```
+
+O cambia el puerto en `docker-compose.yml` — por ejemplo, cambia `"5432:5432"` a `"5433:5432"` para exponer el postgres en el puerto 5433 de tu máquina.
+
+---
+
+### ❌ El servicio `api-gateway` aparece como `Restarting` o `Exit 1`
+
+**Diagnóstico:**
+```bash
+docker compose logs api-gateway
+```
+
+**Causas más comunes:**
+
+| Mensaje en el log | Causa | Solución |
+|---|---|---|
+| `could not connect to server: Connection refused` | PostgreSQL no terminó de arrancar antes que el API | Espera 30 segundos y ejecuta `docker compose restart api-gateway` |
+| `pydantic_settings ValidationError` | Falta una variable en `.env` | Revisa que `.env` tenga todas las variables de `.env.example` |
+| `ModuleNotFoundError` | Dependencia de Python no instalada en la imagen | Ejecuta `docker compose up --build -d` para reconstruir |
+| `Address already in use: 8000` | Otro proceso usa el puerto 8000 | Cierra el proceso o cambia el puerto en `docker-compose.yml` |
+
+---
+
+### ❌ El servicio `frontend` arranca pero el navegador muestra pantalla en blanco
+
+**Diagnóstico:**
+```bash
+docker compose logs frontend
+```
+
+**Causas comunes:**
+
+1. **El build de React falló silenciosamente** — revisa los logs durante el `docker compose up --build`. Busca errores de JavaScript.
+
+2. **El API Gateway no está respondiendo** — el frontend intenta conectarse al backend. Verifica:
+   ```bash
+   curl http://localhost:8000/health
+   ```
+   Debe responder: `{"status": "ok", "service": "api-gateway"}`
+
+3. **Cache del navegador** — presiona `Ctrl+Shift+R` (o `Cmd+Shift+R` en Mac) para recargar sin caché.
+
+---
+
+### ❌ El análisis de dominio se queda en estado "running" para siempre
+
+**Qué significa:** El Worker Scanner recibió la tarea pero algo falló durante la ejecución.
+
+**Diagnóstico:**
+```bash
+docker compose logs worker-scanner
+```
+
+**Causas comunes:**
+
+| Causa | Solución |
+|---|---|
+| El script bash `validar_subdominioModtimeout.sh` no está en el contenedor | Verifica que el archivo existe en `servicios/worker-scanner/` y reconstruye con `--build` |
+| El dominio ingresado no existe o no responde | Prueba con un dominio conocido como `google.com` |
+| RabbitMQ no está listo cuando el worker arranca | `docker compose restart worker-scanner` |
+| Timeout del script bash | Normal para dominios grandes — espera más tiempo |
+
+---
+
+### ❌ Error al crear el admin: "UNIQUE constraint failed" o "already exists"
+
+**Qué significa:** El usuario administrador ya fue creado antes — es un error inofensivo.
+
+**Solución:** No necesitas hacer nada. El usuario ya existe, simplemente intenta hacer login con las credenciales del `.env`.
+
+---
+
+### ❌ Los informes PDF/DOCX no se generan o no se pueden descargar
+
+**Diagnóstico:**
+```bash
+docker compose logs worker-report
+```
+
+**Causas comunes:**
+
+| Mensaje | Causa | Solución |
+|---|---|---|
+| `No such file or directory: reports/scan_*.csv` | El scanner no terminó de copiar el CSV | Espera a que el estado del scan cambie a `completed` |
+| `ImportError: reportlab` | Dependencia faltante | `docker compose up --build -d worker-report` |
+| El download retorna 404 | El archivo existe pero no está en el volumen compartido | Verifica que el `docker-compose.yml` tiene el volumen `reports_data` montado en ambos workers |
+
+---
+
+### ❌ "No space left on device" durante el build
+
+**Qué significa:** Docker llenó el disco con imágenes y capas antiguas.
+
+**Solución:**
+```bash
+# Ver cuánto espacio usa Docker
+docker system df
+
+# Limpiar imágenes, contenedores y capas sin usar
+docker system prune -a
+
+# Limpiar también los volúmenes (CUIDADO: borra datos de la BD)
+docker system prune -a --volumes
+```
+
+En Docker Desktop (Windows/Mac), también puedes ir a Settings → Resources → Disk usage y hacer "Clean / Purge data".
+
+---
+
+### ❌ Los cambios en el código no se reflejan al volver a levantar
+
+**Causa:** Docker usa imágenes cacheadas. Si cambias código, necesitas reconstruir.
+
+**Solución:**
+```bash
+# Reconstruir todas las imágenes desde cero (ignora el caché)
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+### ❌ En Windows: WSL 2 o Hyper-V no habilitado
+
+**Síntoma:** Docker Desktop no arranca y muestra un error sobre virtualización.
+
+**Solución:**
+1. Abre PowerShell **como Administrador** y ejecuta:
+   ```powershell
+   wsl --install
+   ```
+2. Reinicia el equipo
+3. Abre Docker Desktop nuevamente
+
+Si el error es sobre Hyper-V:
+1. Abre PowerShell como Administrador:
+   ```powershell
+   Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+   ```
+2. Reinicia
+
+---
+
+### ❌ El equipo destino no tiene acceso a internet para descargar imágenes
+
+**Situación:** Quieres correr el proyecto en una máquina sin acceso a Docker Hub o GitHub.
+
+**Solución — exportar e importar imágenes manualmente:**
+
+En el equipo con internet (donde ya funciona):
+```bash
+# Guardar todas las imágenes en archivos tar
+docker save asm-api-gateway:latest | gzip > api-gateway.tar.gz
+docker save asm-worker-scanner:latest | gzip > worker-scanner.tar.gz
+docker save asm-worker-report:latest | gzip > worker-report.tar.gz
+docker save asm-frontend:latest | gzip > frontend.tar.gz
+```
+
+Copia esos archivos `.tar.gz` al equipo destino (USB, red local, etc.) y en el equipo destino:
+```bash
+docker load < api-gateway.tar.gz
+docker load < worker-scanner.tar.gz
+docker load < worker-report.tar.gz
+docker load < frontend.tar.gz
+```
+
+Luego el `docker compose up -d` funcionará sin necesitar internet.
+
+---
+
+### Tabla resumen de comandos de diagnóstico
+
+| Quiero saber... | Comando |
+|---|---|
+| Si todos los servicios están corriendo | `docker compose ps` |
+| Por qué falló un servicio | `docker compose logs <nombre-servicio>` |
+| Los logs en tiempo real | `docker compose logs -f` |
+| Cuánta memoria/CPU usa cada contenedor | `docker stats` |
+| Si el API responde | `curl http://localhost:8000/health` |
+| Entrar "dentro" de un contenedor a inspeccionar | `docker compose exec api-gateway bash` |
+| Cuánto disco usa Docker | `docker system df` |
+| Limpiar todo lo que no se usa | `docker system prune -a` |
+
+---
+
 *Documento generado como parte del Trabajo Final de Especialización en Ciberseguridad — Énfasis DevSecOps.*
