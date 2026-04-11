@@ -13,6 +13,33 @@ const STATUS_LABELS = {
   pending: 'Pendiente', running: 'En ejecución', completed: 'Completado', failed: 'Error'
 }
 
+const PROGRESS_MAP = {
+  pending: {
+    step: 1,
+    total: 3,
+    percent: 33,
+    label: 'Preparando análisis',
+    badgeClass: 'bg-yellow-100 text-yellow-800',
+    barClass: 'bg-yellow-500',
+  },
+  running: {
+    step: 2,
+    total: 3,
+    percent: 66,
+    label: 'Análisis de superficie',
+    badgeClass: 'bg-blue-100 text-blue-800',
+    barClass: 'bg-blue-600',
+  },
+  completed: {
+    step: 3,
+    total: 3,
+    percent: 100,
+    label: 'Informe generado',
+    badgeClass: 'bg-green-100 text-green-800',
+    barClass: 'bg-green-600',
+  },
+}
+
 export default function Dashboard() {
   const [domain, setDomain]   = useState('')
   const [scans, setScans]     = useState([])
@@ -20,17 +47,25 @@ export default function Dashboard() {
   const [error, setError]     = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const activeScan = scans.find(scan => scan.status === 'pending' || scan.status === 'running')
+  const activeProgress = activeScan ? PROGRESS_MAP[activeScan.status] : null
+
   const loadScans = async () => {
     setLoading(true)
     try {
       const res = await API.get('/scans/')
       setScans(res.data)
-    } catch {
+      setError('')  // 👈 limpia error si ya funciona
+    } catch (err) {
+      if (err.response?.status === 401) {
+        // 👈 ignorar error de autenticación temporal
+        return
+      }
       setError('Error cargando escaneos')
     } finally {
       setLoading(false)
     }
-  }
+   }
 
   useEffect(() => {
     loadScans()
@@ -91,6 +126,42 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {activeScan && activeProgress && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">🔄 Escaneo en ejecución</h2>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${activeProgress.badgeClass}`}>
+              {activeScan.status === 'pending' ? 'Pendiente' : 'En ejecución'}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm text-slate-500">Dominio</p>
+              <p className="text-base font-semibold text-slate-900">{activeScan.domain}</p>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Fase: {activeProgress.label}</span>
+              <span className="font-medium text-slate-700">
+                Progreso: {activeProgress.step} de {activeProgress.total}
+              </span>
+            </div>
+
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+              <div
+                className={`${activeProgress.barClass} h-3 rounded-full transition-all duration-500`}
+                style={{ width: `${activeProgress.percent}%` }}
+              />
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Actualización automática cada 10 segundos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Lista de escaneos */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
