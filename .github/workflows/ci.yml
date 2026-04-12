@@ -348,24 +348,28 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Checkov — escaneo Terraform
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: infraestructura/terraform
-          framework: terraform
-          output_format: cli
-          soft_fail: true
+        run: |
+          docker run --rm \
+            -v $(pwd):/tf \
+            bridgecrewio/checkov \
+            -d /tf/infraestructura/terraform \
+            --framework terraform \
+           --quiet
 
       - name: Checkov — escaneo Kubernetes
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: orquestacion/k8s
-          framework: kubernetes
-          output_format: cli
-          soft_fail: true
+        run: |
+          docker run --rm \
+            -v $(pwd):/tf \
+            bridgecrewio/checkov \
+            -d /tf/orquestacion/k8s \
+            --framework kubernetes \
+            --quiet
 
       - name: Checkov — escaneo Docker Compose
-        uses: bridgecrewio/checkov-action@master
-        with:
-          file: docker-compose.yml
-          framework: dockerfile
-          soft_fail: true
+        run: |
+          docker run --rm \
+            -v $(pwd):/tf \
+            bridgecrewio/checkov \
+            -f /tf/docker-compose.yml \
+            --framework dockerfile \
+            --quiet
