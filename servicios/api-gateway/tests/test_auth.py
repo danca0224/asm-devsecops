@@ -30,7 +30,7 @@ def test_create_access_token_with_role():
     from jose import jwt
     import os
     # Decode without verification for structure test
-    payload = jwt.decode(token, options={"verify_signature": False})
+    payload = jwt.decode(token, "test", options={"verify_signature": False})
     assert payload["sub"] == "admin"
     assert payload["role"] == "admin"
     assert "exp" in payload
