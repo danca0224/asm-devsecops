@@ -61,6 +61,7 @@ cd servicios/frontend
 npm install
 npm test
 ```
+> Nota: en el entorno CI se utiliza `npm install` en lugar de `npm ci`, ya que el repositorio no mantiene `package-lock.json` como artefacto obligatorio de versionamiento.
 
 ## 6. Ejecutar Análisis de Seguridad Local
 
@@ -80,16 +81,59 @@ gitleaks detect --source . --verbose
 trivy fs servicios/api-gateway/requirements.txt --severity HIGH,CRITICAL
 ```
 
-## 7. Estrategia de Branching
+## 7. Pipeline CI/CD (DevSecOps)
+
+El proyecto implementa un pipeline DevSecOps automatizado mediante **GitHub Actions**, ejecutado sobre la rama `master` y preparado para validar código, dependencias, imágenes, infraestructura y la aplicación en ejecución.
+
+### Flujo del pipeline
+
+1. **Detección de secretos** con Gitleaks.
+2. **SAST** sobre código Python con Bandit y Semgrep.
+3. **SCA** sobre dependencias con Trivy.
+4. **Build** de imágenes Docker por microservicio:
+   - `api-gateway`
+   - `worker-scanner`
+   - `worker-report`
+   - `frontend`
+5. **Pruebas unitarias**:
+   - `pytest` para backend
+   - `jest` para frontend
+6. **Levantamiento de entorno de staging** con Docker Compose dentro del runner CI.
+7. **Creación automática de usuario administrador** para pruebas autenticadas.
+8. **Obtención de JWT** desde `/api/auth/token`.
+9. **Ejecución automática de análisis ASM** contra la API.
+10. **DAST** con OWASP ZAP sobre el entorno levantado.
+11. **Escaneo de IaC** con Checkov sobre Terraform, Kubernetes y Docker Compose.
+12. **Apagado automático del entorno** al finalizar.
+
+### Características clave del pipeline
+
+- La seguridad se ejecuta como parte del ciclo de integración continua.
+- El pipeline levanta un entorno real de ejecución para validar el comportamiento de la aplicación.
+- Se realiza autenticación automática antes de pruebas dinámicas sobre endpoints protegidos.
+- Los hallazgos de herramientas como Bandit, Trivy y Checkov se conservan como evidencia aun cuando se ejecuten en modo no bloqueante.
+- Se apaga automáticamente el entorno de staging para no dejar residuos en el runner.
+
+### Validación en GitHub Actions
+
+La validación del pipeline se realiza desde la pestaña **Actions** del repositorio. Cada ejecución permite revisar:
+
+- estado de cada job,
+- logs detallados,
+- hallazgos de seguridad,
+- artefactos generados,
+- comportamiento del despliegue temporal.
+
+## 8. Estrategia de Branching
 
 ```
-main        → rama de producción (protegida, requiere PR + CI)
-develop     → integración de features
-feature/X   → desarrollo de funcionalidad X
-hotfix/X    → correcciones urgentes en producción
+master      → rama principal activa del proyecto y punto de ejecución del pipeline
+develop     → integración de funcionalidades en evolución
+feature/X   → desarrollo de funcionalidad específica
+hotfix/X    → correcciones urgentes
 ```
 
-## 8. Convención de Commits
+## 9. Convención de Commits
 
 Seguimos [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -102,7 +146,7 @@ ci: mejora pipeline con caché de Docker layers
 sec: actualiza dependencias con CVEs críticos
 ```
 
-## 9. Proceso de Contribución
+## 10. Proceso de Contribución
 
 1. Fork del repositorio
 2. Crear branch: `git checkout -b feature/mi-feature`

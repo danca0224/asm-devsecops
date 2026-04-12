@@ -28,10 +28,11 @@ El modelo completo está disponible en formato OWASP Threat Dragon en:
 - **Acción ante hallazgo:** El pipeline falla y notifica
 
 ### 2.2 Bandit (SAST Python)
-- **Cuándo:** En cada push/PR
-- **Alcance:** `servicios/api-gateway/app/`, `worker-scanner/`, `worker-report/`
-- **Nivel de severidad reportado:** MEDIUM+
-- **Exclusiones documentadas:** B101 (assert en tests), B601 (shell=True en scripts conocidos)
+- **Cuándo:** En cada push sobre la rama principal y ramas de integración
+- **Alcance:** `servicios/api-gateway/app/`, `servicios/worker-scanner/`, `servicios/worker-report/`
+- **Objetivo:** detectar patrones de seguridad inseguros en código Python
+- **Exclusiones documentadas:** B101 y B601
+- **Modo de ejecución en CI:** se conserva la evidencia de hallazgos sin bloquear el pipeline en fase académica, permitiendo análisis y remediación posterior
 
 ### 2.3 Semgrep (SAST multi-reglas)
 - **Cuándo:** En cada push/PR
@@ -39,20 +40,42 @@ El modelo completo está disponible en formato OWASP Threat Dragon en:
 - **Configuración:** `.github/workflows/ci.yml` → job `sast-scan`
 
 ### 2.4 Trivy (Escaneo de dependencias e imágenes)
-- **Dependencias (SCA):** `requirements.txt` y `package.json` en cada PR
-- **Imágenes Docker:** Después del build, severidad CRITICAL = falla automática
-- **Acción:** Pipeline falla si hay CVE crítico sin excepción documentada
+- **Dependencias (SCA):** análisis sobre dependencias del backend y frontend
+- **Imágenes Docker:** análisis posterior al build de cada microservicio
+- **Cobertura:** sistema de archivos y contenedores
+- **Modo en CI:** configurado para conservar evidencia de hallazgos y permitir continuidad del pipeline en entorno académico controlado
+- **Objetivo:** visibilizar CVEs en dependencias y en imágenes finales antes de despliegue
 
 ### 2.5 OWASP ZAP (DAST)
-- **Cuándo:** Después de pruebas unitarias, contra entorno de staging levantado en CI
-- **Tipo:** Baseline Scan (pasivo, sin fuzzing agresivo)
-- **Target:** `http://localhost:8000` (API Gateway)
-- **Reglas ignoradas:** Ver `.zap/rules.tsv`
+- **Cuándo:** Después de pruebas unitarias y con entorno de staging levantado en CI
+- **Tipo:** Baseline Scan
+- **Target:** `http://localhost:8000`
+- **Entorno:** Docker Compose efímero dentro de GitHub Actions
+- **Capacidad diferencial:** el pipeline crea usuario admin, obtiene JWT y ejecuta validaciones sobre una API funcional en runtime
+- **Reglas ignoradas:** definidas en `.zap/rules.tsv`
 
 ### 2.6 Checkov (IaC Security)
-- **Alcance:** `infraestructura/terraform/`, `orquestacion/k8s/`, `docker-compose.yml`
-- **Frameworks:** terraform, kubernetes, dockerfile
-- **Modo:** `soft_fail: true` (reporta pero no bloquea el pipeline)
+- **Alcance:** Terraform, manifiestos Kubernetes y Docker Compose
+- **Frameworks:** terraform, kubernetes y validación asociada a configuración de contenedores
+- **Modo de ejecución:** ejecución directa por contenedor Docker en GitHub Actions
+- **Comportamiento:** reporta hallazgos sin romper el pipeline, utilizando un enfoque no bloqueante para fines de análisis y evidencia
+
+### 2.7 Autenticación automática para pruebas dinámicas
+
+El pipeline implementa autenticación automática contra la API antes de ejecutar análisis dinámicos y acciones funcionales sobre el sistema.
+
+#### Flujo aplicado en CI
+
+1. Se levanta un entorno temporal de staging con Docker Compose.
+2. Se crea un usuario administrador de forma automática.
+3. Se realiza autenticación contra `/api/auth/token`.
+4. Se obtiene un token JWT dinámico.
+5. El token se reutiliza para invocar endpoints protegidos.
+6. Se ejecuta un análisis ASM real desde la propia API antes de ZAP.
+
+#### Valor de seguridad
+
+Este enfoque permite validar no solo endpoints públicos, sino también el comportamiento de la aplicación en escenarios autenticados, acercando la validación a condiciones reales de operación.
 
 ---
 
@@ -120,3 +143,52 @@ Si descubres una vulnerabilidad en este proyecto:
 4. Se te acreditará en el `CHANGELOG.md` (si lo deseas)
 
 Seguimos el estándar [CVSS v3.1](https://www.first.org/cvss/) para clasificar severidad.
+
+## 6. Resultados del Pipeline DevSecOps
+
+La ejecución del pipeline permite validar múltiples capas del sistema en una sola corrida:
+
+- Código fuente
+- Dependencias
+- Imágenes Docker
+- Aplicación en ejecución
+- Infraestructura como código
+
+### Ejecución validada
+
+Durante la implementación se validó exitosamente el siguiente flujo:
+
+1. Construcción de imágenes por microservicio
+2. Ejecución de pruebas unitarias
+3. Levantamiento de entorno efímero de staging
+4. Creación automática de usuario administrador
+5. Generación de JWT por login programático
+6. Ejecución de análisis ASM sobre la API
+7. Ejecución de OWASP ZAP contra la API levantada
+8. Ejecución de Checkov sobre Terraform, Kubernetes y Docker Compose
+9. Apagado del entorno al finalizar
+
+### Interpretación
+
+Este pipeline demuestra un enfoque DevSecOps real, donde la seguridad no se limita al código fuente, sino que cubre también infraestructura, dependencias, imágenes y comportamiento dinámico en runtime.
+
+## 7. Valor del enfoque DevSecOps
+
+La principal ventaja del enfoque implementado es que la seguridad se integra desde etapas tempranas y se mantiene activa durante todo el ciclo de vida del software.
+
+### Beneficios obtenidos
+
+- Detección temprana de errores de configuración
+- Visibilidad sobre vulnerabilidades en dependencias e imágenes
+- Validación de la aplicación en ejecución
+- Automatización del aseguramiento mínimo antes de despliegue
+- Evidencia reproducible para auditoría técnica y académica
+
+### Diferencial del proyecto
+
+El proyecto no se limita a ejecutar herramientas aisladas. Implementa una cadena completa de validación técnica que integra:
+- autenticación automática,
+- análisis de superficie de ataque,
+- pruebas dinámicas,
+- validación de infraestructura,
+- y levantamiento temporal de servicios para pruebas reales.

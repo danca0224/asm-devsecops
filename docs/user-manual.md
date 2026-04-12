@@ -23,6 +23,7 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 1. En el Dashboard, ingresa el dominio en el campo de texto (ej: `ejemplo.com`)
 2. Haz clic en **Ejecutar análisis**
 3. El análisis queda en estado **Pendiente** → **En ejecución** → **Completado**
+4. Mientras se procesa, el dashboard muestra progreso visual y el estado del análisis más reciente
 
 > El análisis puede tomar entre 5 y 15 minutos dependiendo de la cantidad de subdominios y la velocidad de respuesta del objetivo.
 
@@ -31,9 +32,13 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 - Una vez completado, aparece el botón **Ver informe →**
 - Haz clic para acceder a la página de detalle del escaneo
 
-### 2.3 Descargar informe PDF
+> El dashboard principal muestra los escaneos recientes, su estado, y el acceso directo al detalle del análisis mediante el botón **Ver informe →**.
 
-En la página de detalle, haz clic en **↓ Descargar** junto al informe PDF.
+### 2.3 Descargar informes
+
+En la página de detalle del escaneo, abre la pestaña **Informes** y usa el botón **Descargar** sobre el reporte generado.
+
+El sistema puede mostrar uno o varios informes asociados al escaneo, según el procesamiento realizado.
 El informe incluye:
 - Resumen de criticidad global
 - Tabla de hallazgos por categoría
@@ -82,3 +87,10 @@ Accede desde el menú superior → **Usuarios**
 | Certificado SSL inválido | Expirado, inválido o ausente | Alta |
 | TLS obsoleto | TLS 1.0 o 1.1 habilitado | Media |
 | Cifrados débiles | RC4, CBC, DES, NULL | Media |
+
+## 6. Consideraciones de Uso
+
+- La plataforma está diseñada para análisis OSINT y de superficie de ataque externa.
+- El tiempo de procesamiento puede variar según el dominio objetivo.
+- La disponibilidad de informes depende de la correcta finalización del escaneo y del procesamiento de resultados.
+- Algunos análisis pueden reflejar estados temporales como `Pendiente`, `En ejecución`, `Completado` o `Error`.

@@ -84,13 +84,52 @@ docker compose exec api-gateway python -m app.scripts.create_admin
 git tag v1.0.0
 git push origin v1.0.0
 
+> Importante: el pipeline de CI utiliza nombres locales de imagen para el build y análisis dentro del runner, mientras que el pipeline de release/deploy es el encargado de publicar imágenes versionadas en Docker Hub.
+
 # GitHub Actions ejecutará automáticamente:
 # 1. CI completo (tests, SAST, trivy, ZAP)
 # 2. Build y push a Docker Hub con tag v1.0.0 + latest
 # 3. Despliegue en producción
 ```
 
-## 6. Troubleshooting Común
+## 6. Ejecución del Pipeline de Despliegue y Validación
+
+Además del despliegue manual mediante Terraform, Ansible y Docker Compose, el proyecto incorpora un pipeline automatizado en GitHub Actions que valida la aplicación antes de cualquier liberación.
+
+### Qué realiza el pipeline
+
+- Detección de secretos en el repositorio.
+- Escaneo SAST de código fuente.
+- Escaneo SCA de dependencias.
+- Build de imágenes Docker por servicio.
+- Pruebas unitarias de backend y frontend.
+- Levantamiento de entorno temporal de staging con Docker Compose.
+- Creación automática de usuario administrador.
+- Autenticación contra la API mediante JWT.
+- Ejecución de análisis ASM desde la propia API del sistema.
+- Escaneo DAST con OWASP ZAP.
+- Validación de infraestructura como código con Checkov.
+- Apagado automático del entorno al finalizar.
+
+### Entorno temporal de staging en CI
+
+Durante la ejecución del pipeline, se genera dinámicamente un archivo `.env` con variables mínimas de operación para levantar:
+
+- PostgreSQL
+- RabbitMQ
+- API Gateway
+- Frontend
+- Workers
+
+Esto permite validar la aplicación en un entorno efímero, separado del entorno local del desarrollador y del entorno de producción.
+
+### Consideraciones operativas
+
+- El pipeline no depende de la aplicación Streamlit existente del proyecto previo.
+- La aplicación Streamlit y su base de datos PostgreSQL se consideran independientes y no forman parte del entorno temporal del pipeline.
+- El pipeline levanta su propia infraestructura efímera dentro del runner de GitHub Actions.
+
+## 7. Troubleshooting Común
 
 | Problema | Diagnóstico | Solución |
 |---|---|---|
@@ -99,3 +138,7 @@ git push origin v1.0.0
 | RabbitMQ no conecta | `docker compose logs rabbitmq` | Verificar RABBITMQ_PASSWORD |
 | PostgreSQL no inicia | `docker compose logs db` | Verificar volumen db_data |
 | Frontend 502 Bad Gateway | `docker compose logs frontend` | Verificar que api-gateway esté corriendo |
+| Pipeline falla en login JWT | Revisar step `Obtener token JWT desde la API` en GitHub Actions | Verificar credenciales admin y formato `application/x-www-form-urlencoded` |
+| API reinicia en CI | Revisar logs de `api-gateway` | Verificar variables `.env` requeridas por `Settings` |
+| Checkov reporta hallazgos y devuelve exit code 1 | Revisar configuración del comando | Ejecutar en modo no bloqueante con `|| true` |
+| ZAP muestra warning de `fail_action` | Revisar step de ZAP en `ci.yml` | Usar `fail_action: false` si se quiere eliminar warning |
