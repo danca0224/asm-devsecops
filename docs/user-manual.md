@@ -6,11 +6,17 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 
 ---
 
-## 1. Acceso a la Plataforma
+## 1. Acceso a la Plataforma (Local y Producción)
 
-1. Abrir el navegador y acceder a `http://TU_IP:3000`
+1. Abrir el navegador y acceder a:
+
+   - Entorno local: `http://localhost:3000`
+   - Entorno desplegado: `http://<IP_SERVIDOR>:3000`
+
 2. Ingresar usuario y contraseña
 3. Hacer clic en **Iniciar sesión**
+
+> Nota: en el pipeline CI/CD la aplicación se ejecuta de forma interna en el runner, por lo que no es accesible vía navegador. En ese contexto, la API se consume directamente en `http://localhost:8000`.
 
 > El sistema usa tokens JWT. La sesión expira después de 60 minutos de inactividad.
 
@@ -23,7 +29,7 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 1. En el Dashboard, ingresa el dominio en el campo de texto (ej: `ejemplo.com`)
 2. Haz clic en **Ejecutar análisis**
 3. El análisis queda en estado **Pendiente** → **En ejecución** → **Completado**
-4. Mientras se procesa, el dashboard muestra progreso visual y el estado del análisis más reciente
+4. Mientras se procesa, el dashboard muestra el progreso visual y el estado del análisis más reciente
 
 > El análisis puede tomar entre 5 y 15 minutos dependiendo de la cantidad de subdominios y la velocidad de respuesta del objetivo.
 
@@ -39,7 +45,8 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 En la página de detalle del escaneo, abre la pestaña **Informes** y usa el botón **Descargar** sobre el reporte generado.
 
 El sistema puede mostrar uno o varios informes asociados al escaneo, según el procesamiento realizado.
-El informe incluye:
+
+Cada informe puede incluir:
 - Resumen de criticidad global
 - Tabla de hallazgos por categoría
 - Detalle de activos analizados
