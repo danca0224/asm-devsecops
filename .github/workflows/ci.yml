@@ -278,25 +278,23 @@ jobs:
 
       - name: Obtener token JWT desde la API
         run: |
-          curl -s -X POST "http://localhost:8000/api/auth/token" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "username=admin&password=admin123" \
-            -o token.json
+          echo "Intentando login..."
+
+          RESPONSE=$(curl -s -X POST "http://localhost:8000/api/auth/token" \
+          -H "Content-Type: application/json" \
+          -d '{"username":"admin","password":"admin123"}')
 
           echo "Respuesta token:"
-          cat token.json
+          echo $RESPONSE
 
-          python - <<'PY'
-          import json
-          with open("token.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
-          token = data.get("access_token")
-          if not token:
-              raise SystemExit("No se obtuvo access_token")
-          with open("jwt.txt", "w", encoding="utf-8") as out:
-              out.write(token)
-          print("Token JWT obtenido correctamente")
-          PY
+          ACCESS_TOKEN=$(echo $RESPONSE | jq -r '.access_token')
+
+          if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+          echo "No se obtuvo access_token"
+          exit 1
+          fi
+
+          echo $ACCESS_TOKEN > jwt.txt
 
       - name: Ejecutar análisis ASM automático
         run: |
