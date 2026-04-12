@@ -2,9 +2,9 @@ name: CI — Build & Security Pipeline (DevSecOps)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 env:
   REGISTRY: docker.io
@@ -222,10 +222,65 @@ jobs:
           RABBITMQ_PASSWORD: ci_rabbitmq_pass
           CELERY_BROKER_URL: amqp://asm:ci_rabbitmq_pass@rabbitmq:5672//
           RABBITMQ_USER: asm
+          ADMIN_USERNAME: admin
+          ADMIN_PASSWORD: admin123
         run: |
           docker compose up -d --wait || docker compose up -d
           sleep 30
           docker compose ps
+
+      - name: Crear usuario admin para pruebas CI
+        run: |
+          docker compose exec -T api-gateway python -m app.scripts.create_admin
+
+      - name: Obtener token JWT desde la API
+        run: |
+          curl -s -X POST "http://localhost:8000/api/auth/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=admin&password=admin123" \
+            -o token.json
+
+          echo "Respuesta token:"
+          cat token.json
+
+          python - <<'PY'
+          import json
+          with open("token.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          token = data.get("access_token")
+          if not token:
+              raise SystemExit("No se obtuvo access_token")
+          with open("jwt.txt", "w", encoding="utf-8") as out:
+              out.write(token)
+          print("Token JWT obtenido correctamente")
+          PY
+
+      - name: Ejecutar análisis ASM automático
+        run: |
+          TOKEN=$(cat jwt.txt)
+
+          curl -s -X POST "http://localhost:8000/api/scans/" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"domain":"example.com"}' \
+            -o asm-scan-response.json
+
+          echo "Respuesta creación de escaneo:"
+          cat asm-scan-response.json
+
+      - name: Consultar escaneos ASM
+        run: |
+          TOKEN=$(cat jwt.txt)
+
+          echo "Esperando procesamiento inicial..."
+          sleep 15
+
+          curl -s -X GET "http://localhost:8000/api/scans/" \
+            -H "Authorization: Bearer $TOKEN" \
+            -o asm-scans.json
+
+          echo "Listado de escaneos:"
+          cat asm-scans.json
 
       - name: OWASP ZAP — Baseline Scan contra API Gateway
         uses: zaproxy/action-baseline@v0.12.0
