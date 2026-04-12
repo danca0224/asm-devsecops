@@ -324,6 +324,40 @@ export default function ScanDetail() {
   const [activeTab, setActiveTab] = useState('resumen')
   const [error,     setError]     = useState('')
 
+  const handleDownload = async (reportId) => {
+    try {
+      const response = await API.get(`/reports/${id}/download/${reportId}`, {
+        responseType: 'blob',
+      })
+
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/octet-stream',
+      })
+
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+
+      const disposition = response.headers['content-disposition']
+      let filename = `reporte_${reportId}`
+
+      if (disposition) {
+        const match = disposition.match(/filename="?([^"]+)"?/)
+        if (match && match[1]) {
+          filename = match[1]
+        }
+      }
+
+      link.setAttribute('download', filename)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('No se pudo descargar el informe')
+    }
+  }
+
   // Cargar info del escaneo y reportes
   useEffect(() => {
     const load = async () => {
@@ -554,37 +588,37 @@ export default function ScanDetail() {
 
             {/* ── TAB: Informes ─────────────────────────────── */}
             {activeTab === 'informes' && (
-              <div>
-                <h3 className="text-base font-semibold text-slate-800 mb-4">Informes generados</h3>
+              <div className="space-y-4">
+                <h3 className="text-base font-semibold text-slate-800">Informes generados</h3>
+
                 {reports.length === 0 ? (
-                  <p className="text-slate-400 text-sm">
-                    Los informes se generan automáticamente. Si el escaneo acaba de completar,
-                    espera unos segundos y recarga la página.
-                  </p>
+                  <p className="text-slate-400 text-sm">No hay informes disponibles.</p>
                 ) : (
                   <div className="space-y-3">
-                    {reports.map(r => (
+                    {reports.map(rep => (
                       <div
-                        key={r.id}
-                        className="flex items-center justify-between border border-slate-200 rounded-xl px-5 py-4 bg-slate-50"
+                        key={rep.id}
+                        className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4"
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{r.format === 'pdf' ? '📕' : '📘'}</span>
-                          <div>
-                            <p className="font-semibold text-slate-800 uppercase">{r.format}</p>
-                            <p className="text-xs text-slate-400">
-                              Generado: {new Date(r.created_at).toLocaleString('es-CO')}
-                            </p>
-                          </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">
+                            Informe #{rep.id}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {rep.created_at
+                              ? new Date(rep.created_at).toLocaleString('es-CO')
+                              : ''}
+                          </p>
                         </div>
-                        <a
-                          href={`/api/reports/${id}/download/${r.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition"
-                        >
-                          ↓ Descargar
-                        </a>
+
+                        <div className="flex gap-3">
+                         <button
+                           onClick={() => handleDownload(rep.id)}
+                           className="text-red-600 hover:text-red-700 text-sm font-medium"
+                         >
+                          📄 Descargar
+                         </button>
+                      </div>
                       </div>
                     ))}
                   </div>

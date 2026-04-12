@@ -193,12 +193,14 @@ export default function Dashboard() {
                     {STATUS_LABELS[scan.status] || scan.status}
                   </span>
                   {scan.status === 'completed' && (
-                    <Link
-                      to={`/scans/${scan.id}`}
-                      className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                    >
-                      Ver informe →
-                    </Link>
+                    <div className="flex gap-3">
+                      <Link
+                        to={`/scans/${scan.id}`}
+                        className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                      >
+                        Ver informe →
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>
