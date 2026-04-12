@@ -216,6 +216,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Crear archivo .env para CI
+        run: |
+          echo "POSTGRES_USER=postgres" >> .env
+          echo "POSTGRES_PASSWORD=postgres" >> .env
+          echo "POSTGRES_DB=asm_db" >> .env
+          echo "RABBITMQ_DEFAULT_USER=guest" >> .env
+          echo "RABBITMQ_DEFAULT_PASS=guest" >> .env
+          echo "SECRET_KEY=supersecretkey" >> .env
+
       - name: Levantar entorno de staging
         env:
           POSTGRES_PASSWORD: ci_test_password_123
