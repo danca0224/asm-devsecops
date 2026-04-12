@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-asm--devsecops-blue?logo=docker)](https://hub.docker.com/u/TU_USUARIO)
 
-**Plataforma de gestión de superficie de ataque externa con arquitectura de microservicios y pipeline DevSecOps de ciclo completo.**
+**Plataforma de gestión de superficie de ataque externa basada en microservicios, con pipeline DevSecOps completo que integra análisis estático, dinámico, autenticación automática y validación en entorno de ejecución real.**
 
 > Evalúa dominios, detecta subdominios expuestos, analiza puertos, certificados TLS, cabeceras HTTP y configuración de correo. Genera informes técnicos automatizados en DOCX y PDF.
 
@@ -65,6 +65,46 @@ Base de datos | PostgreSQL 16 | 5432
 Message Broker | RabbitMQ 3 | 5672 / 15672
 
 ---
+
+## Pipeline DevSecOps
+
+El proyecto implementa un pipeline DevSecOps automatizado en GitHub Actions que valida múltiples capas de seguridad en cada ejecución.
+
+### Flujo del pipeline
+
+1. Escaneo de secretos (Gitleaks)
+2. Análisis estático de código (SAST - Bandit, Semgrep)
+3. Análisis de dependencias (SCA - Trivy)
+4. Build de imágenes Docker por microservicio
+5. Pruebas unitarias (pytest y Jest)
+6. Levantamiento de entorno de staging con Docker Compose
+7. Creación automática de usuario administrador
+8. Autenticación contra API (`/api/auth/token`)
+9. Obtención de token JWT dinámico
+10. Ejecución de análisis ASM desde la API
+11. Análisis dinámico (DAST - OWASP ZAP)
+12. Escaneo de infraestructura como código (Checkov)
+13. Apagado automático del entorno
+
+### Características clave
+
+- Ejecución completamente automatizada
+- Entorno efímero en cada pipeline
+- Validación en runtime (no solo código)
+- Autenticación real antes de pruebas dinámicas
+- Integración de múltiples herramientas de seguridad
+
+## Diferencial del Proyecto
+
+Este proyecto no se limita a análisis estático o teórico. Implementa un enfoque práctico de seguridad que incluye:
+
+- Autenticación automática mediante JWT en pipeline
+- Ejecución de pruebas dinámicas sobre endpoints protegidos
+- Levantamiento de entorno real con Docker Compose en CI
+- Integración de análisis ASM desde la propia API
+- Validación de seguridad en múltiples capas (código, dependencias, infraestructura y runtime)
+
+Esto permite simular condiciones reales de operación y evaluar el sistema de forma más cercana a un entorno productivo.
 
 ## Quick Start
 
