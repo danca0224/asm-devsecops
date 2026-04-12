@@ -235,11 +235,13 @@ jobs:
 
       - name: Levantar entorno de staging
         env:
-          POSTGRES_PASSWORD: ci_test_password_123
-          JWT_SECRET_KEY: ci_jwt_secret_key_for_testing_only
-          RABBITMQ_PASSWORD: ci_rabbitmq_pass
-          CELERY_BROKER_URL: amqp://asm:ci_rabbitmq_pass@rabbitmq:5672//
-          RABBITMQ_USER: asm
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: asm_db
+          JWT_SECRET_KEY: supersecretkey
+          RABBITMQ_PASSWORD: guest
+          CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672//
+          RABBITMQ_USER: guest
           ADMIN_USERNAME: admin
           ADMIN_PASSWORD: admin123
         run: |
