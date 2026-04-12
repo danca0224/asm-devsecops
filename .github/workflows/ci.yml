@@ -232,6 +232,8 @@ jobs:
           echo "JWT_SECRET_KEY=supersecretkey" >> .env
           echo "RABBITMQ_PASSWORD=guest" >> .env
           echo "CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//" >> .env
+          echo "ADMIN_USERNAME=admin" >> .env
+          echo "ADMIN_PASSWORD=admin123" >> .env
 
       - name: Levantar entorno de staging
         env:
