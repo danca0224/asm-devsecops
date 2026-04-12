@@ -239,6 +239,29 @@ jobs:
           sleep 30
           docker compose ps
 
+      - name: Esperar a que api-gateway esté listo
+        run: |
+          echo "Esperando a que api-gateway esté en ejecución..."
+          for i in {1..18}; do
+            STATUS=$(docker inspect -f '{{.State.Status}}' $(docker compose ps -q api-gateway) 2>/dev/null || echo "not-found")
+            echo "Intento $i - estado actual: $STATUS"
+
+            if [ "$STATUS" = "running" ]; then
+              echo "api-gateway ya está corriendo"
+              break
+            fi
+
+            sleep 10
+          done
+
+          FINAL_STATUS=$(docker inspect -f '{{.State.Status}}' $(docker compose ps -q api-gateway) 2>/dev/null || echo "not-found")
+          if [ "$FINAL_STATUS" != "running" ]; then
+            echo "api-gateway no logró quedar en running"
+            docker compose ps
+            docker compose logs api-gateway
+            exit 1
+          fi
+
       - name: Crear usuario admin para pruebas CI
         run: |
           docker compose exec -T api-gateway python -m app.scripts.create_admin
