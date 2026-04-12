@@ -221,9 +221,17 @@ jobs:
           echo "POSTGRES_USER=postgres" >> .env
           echo "POSTGRES_PASSWORD=postgres" >> .env
           echo "POSTGRES_DB=asm_db" >> .env
+          echo "POSTGRES_HOST=db" >> .env
+          echo "POSTGRES_PORT=5432" >> .env
+
           echo "RABBITMQ_DEFAULT_USER=guest" >> .env
           echo "RABBITMQ_DEFAULT_PASS=guest" >> .env
-          echo "SECRET_KEY=supersecretkey" >> .env
+          echo "RABBITMQ_HOST=rabbitmq" >> .env
+          echo "RABBITMQ_PORT=5672" >> .env
+
+          echo "JWT_SECRET_KEY=supersecretkey" >> .env
+          echo "RABBITMQ_PASSWORD=guest" >> .env
+          echo "CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//" >> .env
 
       - name: Levantar entorno de staging
         env:
