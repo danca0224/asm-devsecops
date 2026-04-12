@@ -187,7 +187,7 @@ jobs:
           CELERY_BROKER_URL: memory://
         run: |
           cd servicios/api-gateway
-          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+          PYTHONPATH=. pytest
 
       - name: Subir reporte de cobertura
         uses: actions/upload-artifact@v4
