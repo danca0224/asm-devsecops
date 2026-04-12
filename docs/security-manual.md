@@ -47,22 +47,69 @@ El modelo completo está disponible en formato OWASP Threat Dragon en:
 - **Objetivo:** visibilizar CVEs en dependencias y en imágenes finales antes de despliegue
 
 ### 2.5 OWASP ZAP (DAST)
+
 - **Cuándo:** Después de pruebas unitarias y con entorno de staging levantado en CI
 - **Tipo:** Baseline Scan
 - **Target:** `http://localhost:8000`
 - **Entorno:** Docker Compose efímero dentro de GitHub Actions
-- **Capacidad diferencial:** el pipeline crea usuario admin, obtiene JWT y ejecuta validaciones sobre una API funcional en runtime
-- **Reglas ignoradas:** definidas en `.zap/rules.tsv`
+
+#### Autenticación en pruebas dinámicas
+
+El pipeline implementa autenticación previa al escaneo mediante:
+
+1. Creación automática de usuario administrador
+2. Autenticación contra `/api/auth/token`
+3. Obtención de token JWT dinámico
+4. Uso del token en cabeceras de solicitudes (`Authorization: Bearer <token>`)
+
+#### Capacidad diferencial
+
+A diferencia de un escaneo tradicional no autenticado, este enfoque permite:
+
+- Validar endpoints protegidos
+- Evaluar lógica interna de negocio
+- Simular comportamiento de usuario real autenticado
+
+#### Reglas ignoradas
+
+Definidas en `.zap/rules.tsv` para evitar falsos positivos en entorno académico.
 
 ### 2.6 Checkov (IaC Security)
 - **Alcance:** Terraform, manifiestos Kubernetes y Docker Compose
 - **Frameworks:** terraform, kubernetes y validación asociada a configuración de contenedores
 - **Modo de ejecución:** ejecución directa por contenedor Docker en GitHub Actions
-- **Comportamiento:** reporta hallazgos sin romper el pipeline, utilizando un enfoque no bloqueante para fines de análisis y evidencia
+- **Comportamiento:** reporta hallazgos sin romper el pipeline
+- **Justificación:** en entorno académico, el objetivo es evidenciar riesgos sin impedir la ejecución completa del pipeline, permitiendo análisis posterior y discusión técnica
 
 ### 2.7 Autenticación automática para pruebas dinámicas
 
 El pipeline implementa autenticación automática contra la API antes de ejecutar análisis dinámicos y acciones funcionales sobre el sistema.
+
+## 2.8 Entorno de Staging en CI/CD
+
+El pipeline levanta un entorno temporal utilizando Docker Compose que incluye:
+
+- API Gateway
+- Base de datos PostgreSQL
+- RabbitMQ
+- Workers de procesamiento
+
+Este entorno permite ejecutar pruebas dinámicas y análisis de seguridad en condiciones similares a producción.
+
+### Características
+
+- Entorno efímero (se destruye al finalizar el pipeline)
+- Aislamiento completo dentro del runner
+- Simulación de arquitectura real
+
+### Beneficio de seguridad
+
+Permite validar:
+
+- Conectividad entre servicios
+- Autenticación real
+- Ejecución de lógica de negocio
+- Exposición real de endpoints
 
 #### Flujo aplicado en CI
 
@@ -192,3 +239,13 @@ El proyecto no se limita a ejecutar herramientas aisladas. Implementa una cadena
 - pruebas dinámicas,
 - validación de infraestructura,
 - y levantamiento temporal de servicios para pruebas reales.
+
+### Alineación con prácticas modernas
+
+El enfoque implementado se alinea con principios de:
+
+- Shift Left Security
+- Continuous Security Testing
+- DevSecOps Automation
+
+Permitiendo integrar seguridad desde el desarrollo hasta la ejecución en runtime.
