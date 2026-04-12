@@ -201,7 +201,7 @@ jobs:
           node-version: "20"
 
       - name: Instalar dependencias frontend
-        run: cd servicios/frontend && npm ci
+        run: cd servicios/frontend && npm install
 
       - name: Jest — pruebas frontend
         run: cd servicios/frontend && npm test -- --passWithNoTests
