@@ -351,7 +351,7 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd):/tf \
-            bridgecrewio/checkov \
+            docker.io/bridgecrew/checkov:3.2.519 \
             -d /tf/infraestructura/terraform \
             --framework terraform \
            --quiet
@@ -360,7 +360,7 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd):/tf \
-            bridgecrewio/checkov \
+            docker.io/bridgecrew/checkov:3.2.519 \
             -d /tf/orquestacion/k8s \
             --framework kubernetes \
             --quiet
@@ -369,7 +369,7 @@ jobs:
         run: |
           docker run --rm \
             -v $(pwd):/tf \
-            bridgecrewio/checkov \
+            docker.io/bridgecrew/checkov:3.2.519 \
             -f /tf/docker-compose.yml \
             --framework dockerfile \
             --quiet
