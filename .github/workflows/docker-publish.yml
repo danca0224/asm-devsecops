@@ -15,16 +15,16 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build api-gateway image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest ./servicios/api-gateway
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/api-gateway:latest ./servicios/api-gateway
 
       - name: Push api-gateway image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/api-gateway:latest
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/api-gateway:latest
 
   build-and-push-frontend:
     runs-on: ubuntu-latest
@@ -35,16 +35,16 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build frontend image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest ./servicios/frontend
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/frontend:latest ./servicios/frontend
 
       - name: Push frontend image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/frontend:latest
 
   build-and-push-worker-report:
     runs-on: ubuntu-latest
@@ -55,16 +55,16 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build worker-report image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/worker-report:latest ./servicios/worker-report
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/worker-report:latest ./servicios/worker-report
 
       - name: Push worker-report image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/worker-report:latest
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/worker-report:latest
 
   build-and-push-worker-scanner:
     runs-on: ubuntu-latest
@@ -75,13 +75,13 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build worker-scanner image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/worker-scanner:latest ./servicios/worker-scanner
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/worker-scanner:latest ./servicios/worker-scanner
 
       - name: Push worker-scanner image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/worker-scanner:latest
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/worker-scanner:latest
