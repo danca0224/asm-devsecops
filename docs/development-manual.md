@@ -34,8 +34,80 @@ docker compose logs -f worker-scanner
 
 ## 3. Crear Usuario Admin
 
+El usuario administrador inicial no se crea automáticamente al levantar los contenedores.
+
+Después de iniciar el sistema con Docker Compose, se debe ejecutar manualmente el script de creación del administrador. Este paso es obligatorio para poder iniciar sesión por primera vez en la interfaz web.
+
+### 3.1 Crear el administrador usando Docker Compose plugin
+
+Si la máquina utiliza el comando moderno `docker compose`, ejecutar:
+
 ```bash
 docker compose exec api-gateway python -m app.scripts.create_admin
+```
+
+### 3.2 Crear el administrador usando Docker Compose clásico
+
+En algunas distribuciones, como Kali Linux, puede estar disponible el comando clásico `docker-compose`. En ese caso, ejecutar:
+
+```bash
+docker-compose exec api-gateway python -m app.scripts.create_admin
+```
+
+### 3.3 Crear el administrador usando Docker directamente
+
+Si el comando anterior no funciona, también puede ejecutarse directamente dentro del contenedor del API Gateway:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si el sistema requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+### 3.4 Variables utilizadas
+
+El script toma las credenciales iniciales desde el archivo `.env`:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+```
+
+Estas variables deben estar configuradas antes de levantar el sistema.
+
+### 3.5 Validar que el usuario fue creado
+
+Para verificar que el usuario administrador quedó registrado en la base de datos, ejecutar:
+
+```bash
+docker exec -it asm-devsecops-db-1 psql -U asm_user -d asm_db -c "SELECT id, username, role, is_active FROM app_users;"
+```
+
+Si la máquina requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-db-1 psql -U asm_user -d asm_db -c "SELECT id, username, role, is_active FROM app_users;"
+```
+
+El resultado esperado debe mostrar el usuario `admin` activo.
+
+### 3.6 Reiniciar la base de datos si el admin no se crea
+
+Si el usuario administrador no aparece o las credenciales no funcionan, se puede limpiar el entorno y recrear la base de datos:
+
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+
+Luego se debe volver a ejecutar el script de creación de administrador:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
 ```
 
 ## 4. Acceder a los Servicios

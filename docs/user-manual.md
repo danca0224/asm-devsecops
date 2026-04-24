@@ -16,6 +16,67 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
 2. Ingresar usuario y contraseña
 3. Hacer clic en **Iniciar sesión**
 
+### Credenciales iniciales en entorno local
+
+En una instalación nueva (máquina limpia), el sistema no crea automáticamente el usuario administrador.
+
+Por esta razón, antes de iniciar sesión por primera vez, se debe ejecutar el siguiente comando desde la terminal:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si el sistema requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+### Usuario por defecto
+
+Las credenciales iniciales se toman del archivo `.env`:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+```
+
+Por defecto, para pruebas locales:
+
+```text
+Usuario: admin
+Contraseña: admin123
+```
+
+### Problemas comunes al iniciar sesión
+
+Si aparece el mensaje:
+
+```text
+Credenciales incorrectas
+```
+
+puede deberse a:
+
+- El usuario administrador no ha sido creado
+- El archivo `.env` no está configurado correctamente
+- La base de datos fue creada antes de definir las credenciales
+
+### Solución
+
+Ejecutar nuevamente:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si el problema persiste, reiniciar el entorno:
+
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+
 > Nota: en el pipeline CI/CD la aplicación se ejecuta de forma interna en el runner, por lo que no es accesible vía navegador. En ese contexto, la API se consume directamente en `http://localhost:8000`.
 
 > El sistema usa tokens JWT. La sesión expira después de 60 minutos de inactividad.

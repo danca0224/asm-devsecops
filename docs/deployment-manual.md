@@ -73,9 +73,64 @@ docker compose ps
 curl http://localhost:8000/health
 curl http://localhost:3000/health
 
-# Crear admin inicial
+# Crear admin inicial (OBLIGATORIO)
+
+El usuario administrador no se crea automáticamente durante el despliegue.
+
+Después de levantar los contenedores, se debe ejecutar manualmente:
+
+```bash
 docker compose exec api-gateway python -m app.scripts.create_admin
 ```
+
+En sistemas donde se use Docker Compose clásico:
+
+```bash
+docker-compose exec api-gateway python -m app.scripts.create_admin
+```
+
+Si el sistema requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Este paso es obligatorio para poder iniciar sesión en la aplicación web.
+
+# Validación en máquina limpia
+
+Para comprobar la transferibilidad del proyecto, se realizó una prueba en una máquina limpia con Kali Linux, partiendo desde cero:
+
+1. Instalación de Docker y Docker Compose.
+2. Clonación del repositorio.
+3. Creación del archivo `.env` desde `.env.example`.
+4. Configuración de variables mínimas.
+5. Construcción y levantamiento de servicios con Docker Compose.
+6. Creación manual del usuario administrador.
+7. Acceso exitoso a la interfaz web.
+8. Validación de creación de usuarios desde la aplicación.
+
+Comandos utilizados:
+
+```bash
+git clone https://github.com/danca0224/asm-devsecops.git
+cd asm-devsecops
+cp .env.example .env
+docker-compose up --build
+
+# En otra terminal, con los contenedores activos
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+
+# Si el sistema requiere permisos elevados
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+
+# URLs de validación
+Frontend: http://localhost:3000
+API Gateway: http://localhost:8000
+Swagger UI: http://localhost:8000/docs
+Healthcheck: http://localhost:8000/health
+
+Resultado: el sistema fue desplegado exitosamente en una máquina limpia y permitió autenticación en la interfaz web y creación de usuarios adicionales
 
 ## 5. Publicar Imágenes en Docker Hub
 
@@ -133,12 +188,81 @@ Esto permite validar la aplicación en un entorno efímero, separado del entorno
 
 | Problema | Diagnóstico | Solución |
 |---|---|---|
-| API Gateway no arranca | `docker compose logs api-gateway` | Verificar POSTGRES_PASSWORD en .env |
+| API Gateway no arranca | `docker compose logs api-gateway` | Verificar POSTGRES_PASSWORD |
 | Worker no procesa tareas | `docker compose logs worker-scanner` | Verificar CELERY_BROKER_URL |
 | RabbitMQ no conecta | `docker compose logs rabbitmq` | Verificar RABBITMQ_PASSWORD |
 | PostgreSQL no inicia | `docker compose logs db` | Verificar volumen db_data |
-| Frontend 502 Bad Gateway | `docker compose logs frontend` | Verificar que api-gateway esté corriendo |
-| Pipeline falla en login JWT | Revisar step `Obtener token JWT desde la API` en GitHub Actions | Verificar credenciales admin y formato `application/x-www-form-urlencoded` |
-| API reinicia en CI | Revisar logs de `api-gateway` | Verificar variables `.env` requeridas por `Settings` |
-| Checkov reporta hallazgos y devuelve exit code 1 | Revisar configuración del comando | Ejecutar en modo no bloqueante con `|| true` |
-| ZAP muestra warning de `fail_action` | Revisar step de ZAP en `ci.yml` | Usar `fail_action: false` si se quiere eliminar warning |
+| Frontend 502 Bad Gateway | `docker compose logs frontend` | Verificar api-gateway |
+| Pipeline falla en login JWT | Revisar step API | Verificar credenciales admin |
+| Docker no está instalado | `docker --version` no responde | `sudo apt install docker.io docker-compose -y` |
+| Docker daemon apagado | `Cannot connect to the Docker daemon` | `sudo systemctl start docker` |
+| Usuario sin permisos Docker | `permission denied` | `sudo usermod -aG docker $USER` |
+| Login web falla | Usuario admin no existe (tabla app_users vacía) | Ejecutar `docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin` |
+| Error descargando imágenes | Conectividad inestable | Reintentar `docker-compose up --build` |
+
+## 8. Validación en Máquina Limpia
+
+Se realizó una prueba completa de despliegue en una máquina nueva (Kali Linux) sin configuraciones previas.
+
+### Flujo ejecutado
+
+1. Instalación de Docker y Docker Compose.
+2. Clonación del repositorio desde GitHub.
+3. Creación del archivo `.env` a partir de `.env.example`.
+4. Configuración de variables mínimas.
+5. Construcción de imágenes con Docker Compose.
+6. Levantamiento de todos los servicios.
+7. Creación manual del usuario administrador.
+8. Acceso a la interfaz web.
+9. Validación de autenticación.
+10. Creación de nuevos usuarios desde la aplicación.
+
+### Comandos utilizados
+
+```bash
+git clone https://github.com/danca0224/asm-devsecops.git
+cd asm-devsecops
+
+cp .env.example .env
+
+docker-compose up --build
+```
+
+Creación del administrador:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+### URLs de validación
+
+```text
+Frontend: http://localhost:3000
+API: http://localhost:8000
+Swagger: http://localhost:8000/docs
+Health: http://localhost:8000/health
+```
+
+### Resultado
+
+El sistema fue desplegado exitosamente en una máquina limpia, permitiendo:
+
+- acceso a la interfaz web
+- autenticación de usuario administrador
+- creación de usuarios adicionales
+- ejecución de funcionalidades del sistema
+
+### Hallazgos
+
+Durante la validación se identificaron los siguientes puntos:
+
+- El usuario administrador no se crea automáticamente
+- Es obligatorio ejecutar el script `create_admin`
+- En Kali Linux puede utilizarse `docker-compose` en lugar de `docker compose`
+- Docker puede no estar activo por defecto
+- Se requieren permisos adecuados para ejecutar Docker
+- La descarga de imágenes depende de conectividad estable
+
+### Conclusión
+
+El sistema es completamente transferible a otro entorno siempre que se sigan los pasos documentados, incluyendo la creación manual del usuario administrador.

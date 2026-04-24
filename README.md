@@ -114,26 +114,181 @@ Esto permite simular condiciones reales de operación y evaluar el sistema de fo
 - Docker Compose >= 2.x
 - Git
 
-### Inicio rápido
+## Ejecución en entorno limpio
+
+Para validar el despliegue del proyecto en una máquina nueva, seguir los siguientes pasos.
+
+### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/TU_USUARIO/asm-devsecops.git
+git clone https://github.com/danca0224/asm-devsecops.git
 cd asm-devsecops
+```
 
-# Copiar variables de entorno
+### 2. Crear archivo de variables de entorno
+
+```bash
 cp .env.example .env
-# Editar .env con tus valores
+```
 
-# Levantar todos los servicios
-docker compose up -d
+### 3. Configurar variables mínimas
 
-# Crear usuario admin inicial
-docker compose exec api-gateway python -m app.scripts.create_admin
+Editar el archivo `.env` y reemplazar los valores de ejemplo:
 
-# Acceder a la aplicación
-# Frontend:  http://localhost:3000
-# API docs:  http://localhost:8000/docs
-# RabbitMQ:  http://localhost:15672  (guest/guest)
+```env
+POSTGRES_PASSWORD=postgres123
+JWT_SECRET_KEY=supersecretkey123
+RABBITMQ_PASSWORD=rabbit123
+CELERY_BROKER_URL=amqp://asm:rabbit123@rabbitmq:5672//
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+DOCKER_HUB_USERNAME=danca0224
+```
+
+### 4. Levantar los servicios
+
+Con Docker Compose clásico:
+
+```bash
+docker-compose up --build
+```
+
+O con Docker Compose plugin:
+
+```bash
+docker compose up --build
+```
+
+### 5. Crear usuario administrador inicial
+
+Este paso es obligatorio para poder iniciar sesión por primera vez.
+
+Con los contenedores activos, abrir otra terminal y ejecutar:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si el sistema requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Este comando crea el usuario administrador usando las variables definidas en `.env`:
+
+```env
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+```
+
+### 6. Acceder a la aplicación
+
+Frontend:
+
+```text
+http://localhost:3000
+```
+
+API Gateway:
+
+```text
+http://localhost:8000
+```
+
+Swagger UI:
+
+```text
+http://localhost:8000/docs
+```
+
+Healthcheck:
+
+```text
+http://localhost:8000/health
+```
+
+RabbitMQ Management:
+
+```text
+http://localhost:15672
+```
+
+### 7. Credenciales iniciales
+
+```text
+Usuario: admin
+Contraseña: admin123
+```
+
+---
+
+## ⚠Poblemas comunes
+
+### Docker no está instalado
+
+Instalar Docker y Docker Compose:
+
+```bash
+sudo apt update
+sudo apt install docker.io docker-compose -y
+```
+
+### Docker daemon no está activo
+
+```bash
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+
+### Error de permisos sobre Docker
+
+Si aparece un error como:
+
+```text
+permission denied while trying to connect to the Docker daemon socket
+```
+
+Ejecutar:
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+Validar con:
+
+```bash
+docker ps
+```
+
+### Error al iniciar sesión
+
+Si la aplicación muestra credenciales incorrectas, verificar que el usuario administrador haya sido creado:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+### Reiniciar completamente el entorno
+
+Si se requiere limpiar la base de datos y recrear el entorno:
+
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+
+Luego crear nuevamente el usuario administrador:
+
+```bash
+docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
 ```
 
 ---
