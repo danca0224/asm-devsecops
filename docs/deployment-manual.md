@@ -64,16 +64,23 @@ CELERY_BROKER_URL=amqp://asm:MiRabbitMQPass@rabbitmq:5672//
 
 ## 4. Verificar Despliegue
 
+### Verificar servicios
+
+En el servidor o máquina donde se ejecuta el proyecto:
+
 ```bash
-# En el servidor
-cd /opt/asm
 docker compose ps
-
-# Verificar health checks
 curl http://localhost:8000/health
-curl http://localhost:3000/health
+```
 
-# Crear admin inicial (OBLIGATORIO)
+En entornos donde se utilice Docker Compose clásico:
+
+```bash
+docker-compose ps
+curl http://localhost:8000/health
+```
+
+### Crear admin inicial
 
 El usuario administrador no se crea automáticamente durante el despliegue.
 
@@ -97,40 +104,14 @@ sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_ad
 
 Este paso es obligatorio para poder iniciar sesión en la aplicación web.
 
-# Validación en máquina limpia
+### URLs de validación
 
-Para comprobar la transferibilidad del proyecto, se realizó una prueba en una máquina limpia con Kali Linux, partiendo desde cero:
-
-1. Instalación de Docker y Docker Compose.
-2. Clonación del repositorio.
-3. Creación del archivo `.env` desde `.env.example`.
-4. Configuración de variables mínimas.
-5. Construcción y levantamiento de servicios con Docker Compose.
-6. Creación manual del usuario administrador.
-7. Acceso exitoso a la interfaz web.
-8. Validación de creación de usuarios desde la aplicación.
-
-Comandos utilizados:
-
-```bash
-git clone https://github.com/danca0224/asm-devsecops.git
-cd asm-devsecops
-cp .env.example .env
-docker-compose up --build
-
-# En otra terminal, con los contenedores activos
-docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
-
-# Si el sistema requiere permisos elevados
-sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
-
-# URLs de validación
+```text
 Frontend: http://localhost:3000
 API Gateway: http://localhost:8000
 Swagger UI: http://localhost:8000/docs
 Healthcheck: http://localhost:8000/health
-
-Resultado: el sistema fue desplegado exitosamente en una máquina limpia y permitió autenticación en la interfaz web y creación de usuarios adicionales
+```
 
 ## 5. Publicar Imágenes en Docker Hub
 
@@ -219,19 +200,40 @@ Se realizó una prueba completa de despliegue en una máquina nueva (Kali Linux)
 
 ### Comandos utilizados
 
+#### Opción A: ejecución desde el repositorio principal del proyecto
+
+Esta es la ruta principal del proyecto y desde donde se ejecuta el pipeline CI/CD:
+
 ```bash
 git clone https://github.com/danca0224/asm-devsecops.git
 cd asm-devsecops
-
 cp .env.example .env
-
 docker-compose up --build
 ```
+
+#### Opción B: ejecución desde el repositorio compartido de entrega
+
+El proyecto también fue copiado al repositorio académico compartido:
+
+```bash
+git clone https://github.com/jaiderospina/DevSecOps2026.git
+cd DevSecOps2026/TRABAJO_FINAL/GRUPO_S
+cp .env.example .env
+docker-compose up --build
+```
+
+> Nota: el despliegue continuo y la publicación de imágenes se realizan desde el repositorio principal `danca0224/asm-devsecops`. El repositorio compartido se usa como ubicación académica de entrega.
 
 Creación del administrador:
 
 ```bash
 docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
+```
+
+Si el sistema requiere permisos elevados:
+
+```bash
+sudo docker exec -it asm-devsecops-api-gateway-1 python -m app.scripts.create_admin
 ```
 
 ### URLs de validación

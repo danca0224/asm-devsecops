@@ -45,6 +45,26 @@ danca0224/worker-report
 danca0224/worker-scanner
 ```
 
+Los repositorios pueden consultarse en:
+
+```text
+https://hub.docker.com/repositories/danca0224
+```
+
+El código fuente principal del proyecto se mantiene en:
+
+```text
+https://github.com/danca0224/asm-devsecops
+```
+
+La copia académica de entrega se encuentra en:
+
+```text
+https://github.com/jaiderospina/DevSecOps2026/tree/main/TRABAJO_FINAL/GRUPO_S
+```
+
+> El pipeline CI/CD y la publicación hacia Docker Hub se ejecutan desde el repositorio principal `danca0224/asm-devsecops`.
+
 ---
 
 ## 5. Configuración de credenciales en GitHub
@@ -189,3 +209,42 @@ El sistema implementa un flujo automatizado de construcción y publicación de i
 - seguridad de credenciales
 - integración continua
 - despliegue consistente
+
+---
+
+## 14. Relación entre GitHub y Docker Hub
+
+Las imágenes Docker se publican bajo la cuenta `danca0224` en Docker Hub.
+
+El repositorio principal del proyecto es:
+
+```text
+https://github.com/danca0224/asm-devsecops
+```
+
+Desde este repositorio se ejecuta el workflow:
+
+```text
+.github/workflows/docker-publish.yml
+```
+
+Este workflow construye y publica las imágenes:
+
+```text
+danca0224/api-gateway:latest
+danca0224/frontend:latest
+danca0224/worker-report:latest
+danca0224/worker-scanner:latest
+```
+
+Adicionalmente, el proyecto fue copiado al repositorio académico compartido:
+
+```text
+https://github.com/jaiderospina/DevSecOps2026/tree/main/TRABAJO_FINAL/GRUPO_S
+```
+
+Esta copia no cambia la configuración de Docker Hub ni el origen principal del pipeline. Para ejecutar desde el repositorio compartido, el usuario debe ubicarse en la carpeta del proyecto:
+
+```bash
+cd DevSecOps2026/TRABAJO_FINAL/GRUPO_S
+```

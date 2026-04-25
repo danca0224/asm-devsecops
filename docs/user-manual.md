@@ -13,6 +13,8 @@ ASM es una plataforma de análisis de superficie de ataque externa. Permite iden
    - Entorno local: `http://localhost:3000`
    - Entorno desplegado: `http://<IP_SERVIDOR>:3000`
 
+> Si el proyecto se ejecuta desde el repositorio compartido de entrega, primero debe ubicarse en la carpeta `TRABAJO_FINAL/GRUPO_S` antes de levantar los servicios con Docker Compose.
+
 2. Ingresar usuario y contraseña
 3. Hacer clic en **Iniciar sesión**
 

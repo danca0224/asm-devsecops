@@ -9,13 +9,42 @@
 
 ## 1. Clonar y Configurar
 
-```bash
-git clone https://github.com/TU_USUARIO/asm-devsecops.git
-cd asm-devsecops
+### Opción A: repositorio principal del proyecto
 
-# Configurar variables de entorno
+Este es el repositorio desde donde se ejecuta el pipeline CI/CD y la publicación hacia Docker Hub:
+
+```bash
+git clone https://github.com/danca0224/asm-devsecops.git
+cd asm-devsecops
+```
+
+### Opción B: repositorio compartido de entrega académica
+
+El proyecto también se encuentra copiado dentro del repositorio compartido:
+
+```bash
+git clone https://github.com/jaiderospina/DevSecOps2026.git
+cd DevSecOps2026/TRABAJO_FINAL/GRUPO_S
+```
+
+> Para desarrollo y despliegue continuo se recomienda trabajar desde `danca0224/asm-devsecops`.
+
+### Configurar variables de entorno
+
+```bash
 cp .env.example .env
-# Editar .env con valores de desarrollo
+```
+
+Editar `.env` con valores de desarrollo:
+
+```env
+POSTGRES_PASSWORD=postgres123
+JWT_SECRET_KEY=supersecretkey123
+RABBITMQ_PASSWORD=rabbit123
+CELERY_BROKER_URL=amqp://asm:rabbit123@rabbitmq:5672//
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+DOCKER_HUB_USERNAME=danca0224
 ```
 
 ## 2. Levantar en Modo Desarrollo
